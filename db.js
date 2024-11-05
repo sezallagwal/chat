@@ -1,9 +1,13 @@
+import dotenv from "dotenv";
 import mongoose from "mongoose";
+
+dotenv.config({ path: "./.env" });
 
 const connectDB = async () => {
   try {
+    console.log(process.env.MONGO_URI);
     const connectionInstance = await mongoose.connect(
-      `mongodb+srv://sezal1470:ziT8vl10dsDPtLJs@nodeexpress.cdzru.mongodb.net/chatApp`
+      `${process.env.MONGO_URI}`
     );
     console.log(
       `\nMongoDB connected !! DB HOST: ${connectionInstance.connection.host}`

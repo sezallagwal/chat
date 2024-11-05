@@ -1,5 +1,4 @@
 "use client";
-import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Socket, io } from "socket.io-client";
 
@@ -7,7 +6,6 @@ export default function Home() {
   // const [stream, setStream] = useState<MediaStream | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [message, setMessage] = useState<string>("");
-  const [receivedMessage, setReceivedMessage] = useState<string>("");
   const [chatHistory, setChatHistory] = useState<string[]>([]);
 
   useEffect(() => {
