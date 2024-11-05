@@ -14,7 +14,7 @@ export default function Home() {
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
 
   useEffect(() => {
-    const newSocket = io("http://localhost:4000");
+    const newSocket = io("http://localhost:10000");
     setSocket(newSocket);
     newSocket.on("connect", () => {
       console.log("connected", newSocket.id);
@@ -47,7 +47,6 @@ export default function Home() {
   useEffect(() => {
     if (socket) {
       socket.on("message", (data) => {
-        console.log(data);
         setChatHistory((prevHistory) => [...prevHistory, data]);
         console.log("received message", data);
       });
@@ -59,7 +58,6 @@ export default function Home() {
     if (socket) {
       const newMessage = { sender: socket.id, content: message };
       socket.emit("message", newMessage);
-      console.log("submitted", newMessage);
       setMessage("");
     }
   };

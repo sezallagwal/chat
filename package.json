@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --turbopack;",
+    "dev": "concurrently \"next dev\" \"nodemon server.js\"",
     "build": "next build",
-    "start": "next start; node server.js",
+    "start": "concurrently \"next start\" \"node server.js\"",
     "lint": "next lint"
   },
   "dependencies": {
@@ -23,6 +23,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "concurrently": "^9.1.0",
     "eslint": "^8",
     "eslint-config-next": "15.0.2",
     "postcss": "^8",
