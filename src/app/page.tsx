@@ -7,7 +7,7 @@ export default function Home() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [message, setMessage] = useState<string>("");
   const [receivedMessage, setReceivedMessage] = useState<string>("");
-  const [chatHistory, setChatHistory] = useState<string[]>([]);
+  // const [chatHistory, setChatHistory] = useState<string[]>([]);
 
   useEffect(() => {
     const newSocket = io("http://localhost:4000");
