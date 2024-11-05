@@ -6,12 +6,7 @@ export default function Home() {
   // const [stream, setStream] = useState<MediaStream | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [message, setMessage] = useState<string>("");
-<<<<<<< HEAD
   const [chatHistory, setChatHistory] = useState<string[]>([]);
-=======
-  const [receivedMessage, setReceivedMessage] = useState<string>("");
-  // const [chatHistory, setChatHistory] = useState<string[]>([]);
->>>>>>> 0b7fd9f40fbaab7be929ee4afeaa020d764f56cc
 
   useEffect(() => {
     const newSocket = io("http://localhost:4000");
@@ -68,7 +63,10 @@ export default function Home() {
     <div className="w-full h-screen flex justify-center items-center flex-col">
       <div className="chat-history overflow-auto mb-[60px] w-full">
         {chatHistory.map((msg, index) => (
-          <p className="bg-stone-600 w-fit m-auto text-white mb-2 p-2 rounded-xl" key={index}>
+          <p
+            className="bg-stone-600 w-fit m-auto text-white mb-2 p-2 rounded-xl"
+            key={index}
+          >
             {msg.content}
           </p>
         ))}
