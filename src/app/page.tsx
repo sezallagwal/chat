@@ -3,10 +3,15 @@ import { useEffect, useState } from "react";
 import { Socket, io } from "socket.io-client";
 
 export default function Home() {
+  interface Message {
+    sender: string;
+    content: string;
+  }
+
   // const [stream, setStream] = useState<MediaStream | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [message, setMessage] = useState<string>("");
-  const [chatHistory, setChatHistory] = useState<string[]>([]);
+  const [chatHistory, setChatHistory] = useState<Message[]>([]);
 
   useEffect(() => {
     const newSocket = io("http://localhost:4000");
