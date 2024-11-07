@@ -4,20 +4,29 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"next dev\" \"nodemon server.js\"",
+    "dev": "nodemon server.js",
     "build": "next build",
-    "start": "concurrently \"next start\" \"node server.js\"",
+    "start": "NODE_ENV=production node server.js",
     "lint": "next lint"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.2.1",
+    "@clerk/themes": "^2.1.41",
+    "@radix-ui/react-aspect-ratio": "^1.1.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
+    "lucide-react": "^0.454.0",
     "mongoose": "^8.8.0",
     "next": "15.0.2",
     "react": "19.0.0-rc-02c0e824-20241028",
     "react-dom": "19.0.0-rc-02c0e824-20241028",
+    "react-resizable-panels": "^2.1.6",
     "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1"
+    "socket.io-client": "^4.8.1",
+    "tailwind-merge": "^2.5.4",
+    "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
     "@types/node": "^20",
