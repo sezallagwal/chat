@@ -11,17 +11,29 @@ import "./globals.css";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SignedIn, UserButton } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 
 export default function Home() {
-  interface Message {
-    sender: string;
+  interface MessageSent {
+    senderId: string;
+    receiverId: string;
     content: string;
+  }
+  interface User {
+    username: string;
+    email: string;
+    clerkId: string;
+    profileImage: string;
   }
 
   // const [stream, setStream] = useState<MediaStream | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [message, setMessage] = useState<string>("");
-  const [chatHistory, setChatHistory] = useState<Message[]>([]);
+  const [messageSent, setMessageSent] = useState<string>("");
+  const [messageReceived, setMessageReceived] = useState<string>("");
+  const [chatHistory, setChatHistory] = useState<MessageSent[]>([]);
+  const [userDetails, setUserDetails] = useState<User | null>(null);
+  const [isUserCreated, setIsUserCreated] = useState(false);
+  const { user } = useUser();
 
   useEffect(() => {
     const newSocket = io(`http://localhost:3000`);
@@ -32,10 +44,10 @@ export default function Home() {
     newSocket.on("disconnect", () => {
       console.log("disconnected", newSocket.id);
     });
-    newSocket.on("chatHistory", (history) => {
-      console.log("fetched chat history");
-      setChatHistory(history);
-    });
+    // newSocket.on("chatHistory", (history) => {
+    //   console.log("fetched chat history");
+    //   setChatHistory(history);
+    // });
     // const getMediaStream = async () => {
     //   try {
     //     const stream = await navigator.mediaDevices.getUserMedia({
@@ -56,9 +68,77 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (user) {
+      setUserDetails({
+        username: user.fullName || "",
+        email: user.emailAddresses[0].emailAddress,
+        clerkId: user.id,
+        profileImage: user.imageUrl,
+      });
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const createUser = async () => {
+      if (userDetails) {
+        try {
+          const response = await fetch("/api/createUser", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(userDetails),
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to create user");
+          }
+
+          const data = await response.json();
+          setIsUserCreated(true);
+          console.log("User created:", data);
+        } catch (error) {
+          console.error("Error creating user:", error);
+        }
+      }
+    };
+
+    createUser();
+  }, [userDetails]);
+
+  // Fetch chat history after the user is created
+  useEffect(() => {
+    const fetchChatHistory = async () => {
+      if (isUserCreated && userDetails) {
+        try {
+          const response = await fetch("/api/chatHistory", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ clerkId: userDetails.clerkId }),
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to fetch chat history");
+          }
+
+          const data = await response.json();
+          setChatHistory(data.chatHistory);
+          console.log("Fetched chat history:", data.chatHistory);
+        } catch (error) {
+          console.error("Error fetching chat history:", error);
+        }
+      }
+    };
+
+    fetchChatHistory();
+  }, [isUserCreated, userDetails]); // Run when `isUserCreated` or `userDetails` changes
+
+  useEffect(() => {
     if (socket) {
       socket.on("message", (data) => {
-        setChatHistory((prevHistory) => [...prevHistory, data]);
+        setMessageReceived(data.content);
         console.log("received message", data);
       });
     }
@@ -67,9 +147,14 @@ export default function Home() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (socket) {
-      const newMessage = { sender: socket.id, content: message };
-      socket.emit("message", newMessage);
-      setMessage("");
+      const newMessageSent = {
+        senderId: userDetails?.clerkId,
+        receiverId: "user_2oluBxlI2oN28GZXbFwCONqdi5n",
+        content: messageSent,
+      };
+      console.log(newMessageSent);
+      socket.emit("message", newMessageSent);
+      setMessageSent("");
     }
   };
   return (
@@ -125,7 +210,7 @@ export default function Home() {
               <div>
                 {chatHistory.map((msg, index) => (
                   <div key={index}>
-                    {msg.sender === socket?.id ? (
+                    {msg.senderId === user?.id ? (
                       <div className="flex justify-end w-full">
                         <div className="bg-lime-600 w-fit p-2 m-2 rounded-xl">
                           {msg.content}
@@ -140,6 +225,24 @@ export default function Home() {
                     )}
                   </div>
                 ))}
+                {messageSent && (
+                  <div>
+                    <div className="flex justify-end w-full">
+                      <div className="bg-lime-600 w-fit p-2 m-2 rounded-xl">
+                        {messageSent}
+                      </div>{" "}
+                    </div>
+                  </div>
+                )}
+                {messageReceived && (
+                  <div>
+                    <div className="flex justify-start w-full">
+                      <div className="bg-lime-50 text-black w-fit p-2 m-2 rounded-xl">
+                        {messageReceived}
+                      </div>{" "}
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
             <form
@@ -149,9 +252,9 @@ export default function Home() {
               <input
                 className="rounded p-2 bg-stone-700 outline-none mr-2 placeholder-white"
                 style={{ flexGrow: 5 }}
-                value={message}
+                value={messageSent}
                 placeholder="Type a message..."
-                onChange={(e) => setMessage(e.target.value)}
+                onChange={(e) => setMessageSent(e.target.value)}
               />
               <button className="bg-lime-600 rounded py-2 px-4">Send</button>
             </form>

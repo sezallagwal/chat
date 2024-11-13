@@ -28,23 +28,17 @@ app.prepare().then(() => {
     // event listener
     console.log(`User with id: ${socket.id} connected`);
 
-    // Fetch chat history when user connects
-    const chatHistory = await Message.find()
-      .sort({ createdAt: 1 })
-      .limit(100)
-      .exec();
-    // emit chat history to client
-    socket.emit("chatHistory", chatHistory);
-
     socket.on("disconnect", () => {
       console.log(`User with id: ${socket.id} disconnected`);
     });
 
     socket.on("message", async (data) => {
       try {
+        console.log(data);
         const message = new Message(data);
         await message.save();
-        io.emit("message", data);
+        socket.emit("message", message);
+        socket.to(data.receiverId).emit("message", message);
       } catch (error) {
         console.log(error, "Error in saving message");
       }
