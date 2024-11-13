@@ -28,44 +28,13 @@ export default function Home() {
 
   // const [stream, setStream] = useState<MediaStream | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
+  const [messageReceived, setMessageReceived] = useState<string[]>([]);
   const [messageSent, setMessageSent] = useState<string>("");
-  const [messageReceived, setMessageReceived] = useState<string>("");
   const [chatHistory, setChatHistory] = useState<MessageSent[]>([]);
   const [userDetails, setUserDetails] = useState<User | null>(null);
   const [isUserCreated, setIsUserCreated] = useState(false);
+  const [room, setRoom] = useState<string[]>([]);
   const { user } = useUser();
-
-  useEffect(() => {
-    const newSocket = io(`http://localhost:3000`);
-    setSocket(newSocket);
-    newSocket.on("connect", () => {
-      console.log("connected", newSocket.id);
-    });
-    newSocket.on("disconnect", () => {
-      console.log("disconnected", newSocket.id);
-    });
-    // newSocket.on("chatHistory", (history) => {
-    //   console.log("fetched chat history");
-    //   setChatHistory(history);
-    // });
-    // const getMediaStream = async () => {
-    //   try {
-    //     const stream = await navigator.mediaDevices.getUserMedia({
-    //       audio: true,
-    //       video: true,
-    //     });
-    //     console.log("got stream", stream);
-    //     console.log(stream.getTracks());
-    //   } catch (error) {
-    //     console.log("error getting stream", error);
-    //   }
-    // };
-    // getMediaStream();
-
-    return () => {
-      newSocket.disconnect();
-    };
-  }, []);
 
   useEffect(() => {
     if (user) {
@@ -106,6 +75,45 @@ export default function Home() {
     createUser();
   }, [userDetails]);
 
+  useEffect(() => {
+    if (userDetails) {
+      const newSocket = io(`http://localhost:3000`, {
+        query: { clerkId: userDetails.clerkId },
+      });
+      setSocket(newSocket);
+      newSocket.on("connect", () => {
+        console.log("connected", newSocket.id);
+      });
+      newSocket.on("disconnect", () => {
+        console.log("disconnected", newSocket.id);
+      });
+
+      return () => {
+        newSocket.disconnect();
+      };
+    } else {
+      console.log("userDetails not set");
+    }
+
+    // newSocket.on("chatHistory", (history) => {
+    //   console.log("fetched chat history");
+    //   setChatHistory(history);
+    // });
+    // const getMediaStream = async () => {
+    //   try {
+    //     const stream = await navigator.mediaDevices.getUserMedia({
+    //       audio: true,
+    //       video: true,
+    //     });
+    //     console.log("got stream", stream);
+    //     console.log(stream.getTracks());
+    //   } catch (error) {
+    //     console.log("error getting stream", error);
+    //   }
+    // };
+    // getMediaStream();
+  }, [userDetails]);
+
   // Fetch chat history after the user is created
   useEffect(() => {
     const fetchChatHistory = async () => {
@@ -138,7 +146,14 @@ export default function Home() {
   useEffect(() => {
     if (socket) {
       socket.on("message", (data) => {
-        setMessageReceived(data.content);
+        console.log(data);
+        setRoom((prevRoom) => {
+          if (!prevRoom.includes(data.senderId)) {
+            return [...prevRoom, data.senderId];
+          }
+          return prevRoom;
+        });
+        setMessageReceived((prevMessages) => [...prevMessages, data.content]);
         console.log("received message", data);
       });
     }
@@ -149,12 +164,10 @@ export default function Home() {
     if (socket) {
       const newMessageSent = {
         senderId: userDetails?.clerkId,
-        receiverId: "user_2oluBxlI2oN28GZXbFwCONqdi5n",
+        receiverId: "user_2ngR68qHg4XdRMpC3wnNgmlRNCz",
         content: messageSent,
       };
-      console.log(newMessageSent);
       socket.emit("message", newMessageSent);
-      setMessageSent("");
     }
   };
   return (
@@ -185,12 +198,19 @@ export default function Home() {
             style={{ minWidth: "100px", marginBottom: "3px" }}
             defaultSize={25}
           >
-            <Card className="h-full bg-[#171717] border-transparent mx-1 flex p-1 gap-1 text-white">
+            <Card className="h-full bg-[#171717] border-transparent mx-1 p-1 text-white flex flex-col gap-1">
+              <div className="flex gap-1">
               <Input
                 className="bg-stone-700 border-transparent"
                 placeholder="Enter Username"
               ></Input>
               <Button className="bg-lime-600 rounded py-2 px-4">Search</Button>
+              </div>
+              <div className="bg-neutral-800 flex flex-col gap-1 h-full rounded p-2">
+                {room.map((roomId, index) => (
+                  <div className="px-1 py-2 bg-stone-700 rounded-sm overflow-hidden" key={index}>{roomId}</div>
+                ))}
+              </div>
             </Card>
           </ResizablePanel>
           <ResizableHandle
@@ -225,24 +245,23 @@ export default function Home() {
                     )}
                   </div>
                 ))}
-                {messageSent && (
-                  <div>
-                    <div className="flex justify-end w-full">
-                      <div className="bg-lime-600 w-fit p-2 m-2 rounded-xl">
-                        {messageSent}
-                      </div>{" "}
-                    </div>
+                <div>
+                  <div className="flex justify-end w-full">
+                    <div className="bg-lime-600 w-fit p-2 m-2 rounded-xl">
+                      {messageSent}
+                    </div>{" "}
                   </div>
-                )}
-                {messageReceived && (
-                  <div>
+                </div>
+
+                {messageReceived.map((msg, index) => (
+                  <div key={index}>
                     <div className="flex justify-start w-full">
                       <div className="bg-lime-50 text-black w-fit p-2 m-2 rounded-xl">
-                        {messageReceived}
+                        {msg}
                       </div>{" "}
                     </div>
                   </div>
-                )}
+                ))}
               </div>
             </Card>
             <form

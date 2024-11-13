@@ -24,21 +24,43 @@ app.prepare().then(() => {
     },
   }); //making instance of server
 
+  const clerkIdToSocketMap = {};
+
   io.on("connection", async (socket) => {
+    const { clerkId } = socket.handshake.query;
     // event listener
-    console.log(`User with id: ${socket.id} connected`);
+    if (clerkId) {
+      // Map clerkId to socket.id
+      clerkIdToSocketMap[clerkId] = socket.id;
+      console.log(
+        `User with clerkId: ${clerkId} connected with socket id: ${socket.id}`
+      );
+    }
 
     socket.on("disconnect", () => {
-      console.log(`User with id: ${socket.id} disconnected`);
+      if (clerkId) {
+        delete clerkIdToSocketMap[clerkId];
+        console.log(`User with clerkId: ${clerkId} disconnected`);
+      }
     });
 
     socket.on("message", async (data) => {
       try {
         console.log(data);
+        const targetSocketId = clerkIdToSocketMap[data.receiverId];
+        console.log(`Mapped clerk IDs: `, clerkIdToSocketMap);
+        if (targetSocketId) {
+          // Emit message to receiver's socket ID
+          io.to(targetSocketId).emit("message", { senderId: data.senderId, content: data.content });
+          console.log(
+            `Message sent to receiver with socket id: ${targetSocketId}`
+          );
+        } else {
+          console.log("User is offline, message not sent.");
+        }
+
         const message = new Message(data);
         await message.save();
-        socket.emit("message", message);
-        socket.to(data.receiverId).emit("message", message);
       } catch (error) {
         console.log(error, "Error in saving message");
       }
