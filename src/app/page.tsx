@@ -256,9 +256,13 @@ export default function Home() {
     };
   }, [searchTerm]);
 
-  socket?.on(message, (data) => {
-    console.log(data);
+
+  socket?.on(message, (msg) => {
+    if (selectedChat) {
+      selectedChat.data.messages.push(msg);
+    }
   });
+
 
   useEffect(() => {
     // Fetch chats from the backend when the search term changes
@@ -413,9 +417,23 @@ export default function Home() {
               {selectedChat ? (
                 <>
                   {selectedChat.data.messages.length > 0 ? (
-                    <div className="flex-1 overflow-y-auto mb-4">
-                      Have to fetch from backend
-                    </div>
+                    selectedChat.data.messages.map((msg, index) => (
+                      <div key={index}>
+                        {msg.senderId === currentUserData?._id ? (
+                          <div className="flex justify-end w-full">
+                            <div className="bg-lime-600 w-fit p-2 m-2 rounded-xl">
+                              {msg.content}
+                            </div>{" "}
+                          </div>
+                        ) : (
+                          <div className="flex justify-start w-full">
+                            <div className="bg-lime-50 text-black w-fit p-2 m-2 rounded-xl">
+                              {msg.content}
+                            </div>{" "}
+                          </div>
+                        )}
+                      </div>
+                    ))
                   ) : (
                     <div>No messages to show</div>
                   )}

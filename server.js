@@ -51,7 +51,7 @@ app.prepare().then(() => {
           console.log(`Mapped user IDs: `, userIdToSocketMap);
           if (targetSocketId) {
             // Emit message to receiver's socket ID
-            socket.broadcast.to(targetSocketId).emit("message", { senderId, content });
+            socket.broadcast.to(targetSocketId).emit("message", {roomId, senderId, content });
             // io.to(targetSocketId).emit("message", { senderId, content });
             console.log(
               `Message sent to receiver with socket id: ${targetSocketId}`
