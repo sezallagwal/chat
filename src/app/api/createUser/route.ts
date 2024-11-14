@@ -9,7 +9,6 @@ export async function POST(req: NextRequest) {
     // Parse the JSON body from the request
     const userDetails = await req.json();
     // Now you can access the data from the body, like userDetails.name, userDetails.email, etc.
-    console.log("Received user details:", userDetails);
     // Check if a user with the same `clerkId` already exists
     let user = await User.findOne({ clerkId: userDetails.clerkId });
 

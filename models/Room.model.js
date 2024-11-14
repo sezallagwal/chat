@@ -1,9 +1,7 @@
 import mongoose from "mongoose";
 
 const RoomSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }],
-    messages: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Message' }],
+    participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
 })
@@ -14,4 +12,6 @@ RoomSchema.pre('save', function (next) {
     next();
 });
 
-export default mongoose.model('Room', RoomSchema);
+const Room = mongoose.models.Room || mongoose.model('Room', RoomSchema);
+
+export default Room;

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Socket, io } from "socket.io-client";
 import { Card } from "@/components/ui/card";
+
 import {
   ResizableHandle,
   ResizablePanel,
@@ -12,34 +13,68 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SignedIn, UserButton } from "@clerk/nextjs";
 import { useUser } from "@clerk/nextjs";
+import { set } from "mongoose";
 
 export default function Home() {
-  interface MessageSent {
+  interface Message {
     senderId: string;
-    receiverId: string;
+    roomId: string;
     content: string;
   }
+
   interface User {
+    _id: string;
     username: string;
     email: string;
     clerkId: string;
     profileImage: string;
   }
 
+  interface RoomResponse {
+    data: {
+      roomId: string;
+      participants: string[];
+      messages: Message[]; // Assuming each message has the Message type defined above
+    };
+  }
+
+  type Chat = {
+    _id: string;
+    username: string;
+    messages: string[];
+  };
+
+  const { user } = useUser();
   // const [stream, setStream] = useState<MediaStream | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [messageReceived, setMessageReceived] = useState<string[]>([]);
-  const [messageSent, setMessageSent] = useState<string>("");
-  const [chatHistory, setChatHistory] = useState<MessageSent[]>([]);
-  const [userDetails, setUserDetails] = useState<User | null>(null);
   const [isUserCreated, setIsUserCreated] = useState(false);
-  const [room, setRoom] = useState<string[]>([]);
-  const { user } = useUser();
+  const [userDetails, setUserDetails] = useState<User | null>(null);
+  const [currentUserData, setCurrentUserData] = useState<User | null>(null);
+
+  const [sentMessage, setSentMessage] = useState<string>("");
+  // const [receivedMessage, setReceivedMessage] = useState<string[]>([]); // todo: array?
+  const [chatHistory, setChatHistory] = useState<Message[]>([]);
+  const [afterSearchUser, setAfterSearchUser] = useState<string>("");
+  const [username, setUsername] = useState<string>("");
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [message, setMessage] = useState("");
+  const [selectedChat, setSelectedChat] = useState<RoomResponse | null>(null);
+  const [filteredChats, setFilteredChats] = useState<Chat[]>([]);
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
+  const [chats, setChats] = useState<Chat[]>([
+    { _id: "1", username: "Alice", messages: ["Hello there!"] },
+    { _id: "2", username: "Bob", messages: ["Hi, how are you?"] },
+    // Add more initial chat data as needed
+  ]);
+
+  const [room, setRoom] = useState<Room[]>([]);
 
   useEffect(() => {
     if (user) {
       setUserDetails({
-        username: user.fullName || "",
+        _id: user.id,
+        username: user.username || "",
         email: user.emailAddresses[0].emailAddress,
         clerkId: user.id,
         profileImage: user.imageUrl,
@@ -64,6 +99,7 @@ export default function Home() {
           }
 
           const data = await response.json();
+          setCurrentUserData(data.data);
           setIsUserCreated(true);
           console.log("User created:", data);
         } catch (error) {
@@ -76,9 +112,9 @@ export default function Home() {
   }, [userDetails]);
 
   useEffect(() => {
-    if (userDetails) {
+    if (currentUserData) {
       const newSocket = io(`http://localhost:3000`, {
-        query: { clerkId: userDetails.clerkId },
+        query: { userId: currentUserData?._id },
       });
       setSocket(newSocket);
       newSocket.on("connect", () => {
@@ -88,11 +124,15 @@ export default function Home() {
         console.log("disconnected", newSocket.id);
       });
 
+      newSocket.on("message", (message: Message) => {
+        console.log("received message", message);
+      });
+
       return () => {
         newSocket.disconnect();
       };
     } else {
-      console.log("userDetails not set");
+      console.log("current user data not set");
     }
 
     // newSocket.on("chatHistory", (history) => {
@@ -112,64 +152,187 @@ export default function Home() {
     //   }
     // };
     // getMediaStream();
-  }, [userDetails]);
+  }, [currentUserData]);
 
-  // Fetch chat history after the user is created
-  useEffect(() => {
-    const fetchChatHistory = async () => {
-      if (isUserCreated && userDetails) {
-        try {
-          const response = await fetch("/api/chatHistory", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ clerkId: userDetails.clerkId }),
-          });
+  // useEffect(() => {
+  //   const fetchChatHistory = async () => {
+  //     if (isUserCreated && userDetails) {
+  //       try {
+  //         const response = await fetch("/api/chatHistory", {
+  //           method: "POST",
+  //           headers: {
+  //             "Content-Type": "application/json",
+  //           },
+  //           body: JSON.stringify({ clerkId: userDetails.clerkId }),
+  //         });
 
-          if (!response.ok) {
-            throw new Error("Failed to fetch chat history");
-          }
+  //         if (!response.ok) {
+  //           throw new Error("Failed to fetch chat history");
+  //         }
 
-          const data = await response.json();
-          setChatHistory(data.chatHistory);
-          console.log("Fetched chat history:", data.chatHistory);
-        } catch (error) {
-          console.error("Error fetching chat history:", error);
-        }
-      }
-    };
+  //         const data = await response.json();
+  //         setChatHistory(data.chatHistory);
+  //         console.log("Fetched chat history:", data.chatHistory);
+  //       } catch (error) {
+  //         console.error("Error fetching chat history:", error);
+  //       }
+  //     }
+  //   };
 
-    fetchChatHistory();
-  }, [isUserCreated, userDetails]); // Run when `isUserCreated` or `userDetails` changes
-
-  useEffect(() => {
-    if (socket) {
-      socket.on("message", (data) => {
-        console.log(data);
-        setRoom((prevRoom) => {
-          if (!prevRoom.includes(data.senderId)) {
-            return [...prevRoom, data.senderId];
-          }
-          return prevRoom;
-        });
-        setMessageReceived((prevMessages) => [...prevMessages, data.content]);
-        console.log("received message", data);
-      });
-    }
-  }, [socket]);
+  //   fetchChatHistory();
+  // }, [isUserCreated, userDetails]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (socket) {
-      const newMessageSent = {
-        senderId: userDetails?.clerkId,
+      const newSentMessage: Message = {
+        senderId: userDetails?.clerkId || "",
         receiverId: "user_2ngR68qHg4XdRMpC3wnNgmlRNCz",
-        content: messageSent,
+        content: sentMessage,
       };
-      socket.emit("message", newMessageSent);
+      socket.emit("message", newSentMessage);
+      setChatHistory((prevHistory) => [...prevHistory, newSentMessage]);
+      setSentMessage("");
     }
   };
+
+  const searchUser = async (username: string) => {
+    try {
+      const response = await fetch("/api/searchUser", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to search user");
+      }
+
+      const data = await response.json();
+      document.body.querySelector(".showSidebar")?.classList.toggle("hidden");
+      setUsername("");
+      setAfterSearchUser(data.data.username);
+      setRoom((prevRoom) => [...prevRoom, { roomId: data.data.clerkId }]);
+      console.log("Searched user:", data);
+    } catch (error) {
+      console.error("Error searching user:", error);
+    }
+  };
+
+  const ShowSidebar = () => {
+    setAfterSearchUser("");
+    document.body.querySelector(".showSidebar")?.classList.toggle("hidden");
+    console.log("sidebar toggled");
+  };
+
+  const showRoom = async (param: string) => {
+    console.log(param);
+    try {
+      await fetch("/api/room", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          friendId: param,
+          ownId: userDetails?.clerkId,
+        }),
+      });
+    } catch (error) {
+      console.error("Error creating room:", error);
+    }
+  };
+
+  // Debounce the search term
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500); // Adjust the debounce delay as needed
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
+
+  socket?.on(message, (data) => {
+    console.log(data);
+  });
+
+  useEffect(() => {
+    // Fetch chats from the backend when the search term changes
+    const fetchChats = async () => {
+      if (debouncedSearchTerm.trim()) {
+        try {
+          console.log(debouncedSearchTerm);
+          const response = await fetch(
+            `/api/searchUser?username=${searchTerm}`
+          );
+          if (!response.ok) {
+            throw new Error("Failed to fetch chats");
+          }
+          const data = await response.json();
+          console.log("users found", data);
+          setFilteredChats(data);
+        } catch (error) {
+          console.error("Failed to fetch chats:", error);
+        }
+      } else {
+        setFilteredChats(chats); // Reset to all chats if no search term
+      }
+    };
+
+    fetchChats();
+  }, [debouncedSearchTerm]);
+
+  // Select chat and set initial messages for MainChatArea
+  const handleChatSelect = async (chat: Chat) => {
+    if (currentUserData) {
+      const userId = currentUserData._id;
+      const chatUserId = chat._id;
+
+      try {
+        const response = await fetch(
+          `/api/room?userId=${userId}&chatUserId=${chatUserId}`
+        );
+        if (!response.ok) {
+          throw new Error("Failed to fetch or create room");
+        }
+        const room = await response.json();
+        console.log("Room found or created:", room);
+        setSearchTerm("");
+        setSelectedChat(room);
+        setChats((prevChats) => {
+          if (!prevChats.some((c) => c._id === chat._id)) {
+            return [...prevChats, chat];
+          }
+          return prevChats;
+        });
+      } catch (error) {
+        console.error("Error fetching or creating room:", error);
+      }
+    }
+  };
+
+  // Send a new message in the selected chat
+  const handleSendMessage = () => {
+    if (selectedChat && message.trim()) {
+      selectedChat.data.messages.push({
+        roomId: selectedChat.data.roomId,
+        senderId: currentUserData?._id || "",
+        content: message,
+      });
+      socket?.emit("message", {
+        roomId: selectedChat.data.roomId,
+        participants: selectedChat.data.participants,
+        senderId: currentUserData?._id || "",
+        content: message,
+      });
+      setMessage(""); // Clear the input field after sending
+    }
+  };
+
   return (
     <>
       <div className="h-screen bg-black">
@@ -199,16 +362,36 @@ export default function Home() {
             defaultSize={25}
           >
             <Card className="h-full bg-[#171717] border-transparent mx-1 p-1 text-white flex flex-col gap-1">
-              <div className="flex gap-1">
-              <Input
-                className="bg-stone-700 border-transparent"
-                placeholder="Enter Username"
-              ></Input>
-              <Button className="bg-lime-600 rounded py-2 px-4">Search</Button>
+              <div className="flex flex-col gap-1">
+                <div className="flex gap-1">
+                  <Input
+                    className="bg-stone-700 border-transparent"
+                    placeholder="Enter Username"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  ></Input>
+                  <Button className="bg-lime-600 rounded py-2 px-4">
+                    Search
+                  </Button>
+                </div>
+                {/* {afterSearchUser && (
+                  <div
+                    className="bg-stone-700 p-2 rounded"
+                    onClick={ShowSidebar}
+                  >
+                    {afterSearchUser}
+                  </div>
+                )} */}
               </div>
-              <div className="bg-neutral-800 flex flex-col gap-1 h-full rounded p-2">
-                {room.map((roomId, index) => (
-                  <div className="px-1 py-2 bg-stone-700 rounded-sm overflow-hidden" key={index}>{roomId}</div>
+              <div className="bg-neutral-800 flex flex-col gap-1 h-full rounded p-2 showSidebar">
+                {filteredChats.map((chat) => (
+                  <div
+                    className="bg-stone-700 px-1 py-2 rounded-sm overflow-hidden text-white"
+                    key={chat._id}
+                    onClick={() => handleChatSelect(chat)}
+                  >
+                    {chat.username}
+                  </div>
                 ))}
               </div>
             </Card>
@@ -226,9 +409,40 @@ export default function Home() {
               backgroundColor: "#171717",
             }}
           >
-            <Card className="chat-history bg-neutral-900 p-2 scrollbar scrollbar-thumb overflow-auto h-[92%] border-transparent">
+            <Card className="text-white chat-history bg-neutral-900 p-2 scrollbar scrollbar-thumb overflow-auto h-[92%] border-transparent">
+              {selectedChat ? (
+                <>
+                  {selectedChat.data.messages.length > 0 ? (
+                    <div className="flex-1 overflow-y-auto mb-4">
+                      Have to fetch from backend
+                    </div>
+                  ) : (
+                    <div>No messages to show</div>
+                  )}
+
+                  <div className="flex items-center">
+                    <input
+                      type="text"
+                      className="flex-1 p-2 border rounded text-black"
+                      placeholder="Type your message..."
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                    />
+                    <button
+                      onClick={handleSendMessage}
+                      className="p-2 ml-2 bg-blue-500 text-white rounded"
+                    >
+                      Send
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex-1 p-4">
+                  Select a chat to start talking.
+                </div>
+              )}
               <div>
-                {chatHistory.map((msg, index) => (
+                {/* {chatHistory.map((msg, index) => (
                   <div key={index}>
                     {msg.senderId === user?.id ? (
                       <div className="flex justify-end w-full">
@@ -244,16 +458,16 @@ export default function Home() {
                       </div>
                     )}
                   </div>
-                ))}
-                <div>
+                ))} */}
+                {/* <div>
                   <div className="flex justify-end w-full">
                     <div className="bg-lime-600 w-fit p-2 m-2 rounded-xl">
-                      {messageSent}
+                      {sentMessage}
                     </div>{" "}
                   </div>
                 </div>
 
-                {messageReceived.map((msg, index) => (
+                {receivedMessage.map((msg, index) => (
                   <div key={index}>
                     <div className="flex justify-start w-full">
                       <div className="bg-lime-50 text-black w-fit p-2 m-2 rounded-xl">
@@ -261,22 +475,22 @@ export default function Home() {
                       </div>{" "}
                     </div>
                   </div>
-                ))}
+                ))} */}
               </div>
             </Card>
-            <form
+            {/* <form
               onSubmit={handleSubmit}
               className="bg-neutral-900 py-1 flex px-3 text-white"
             >
               <input
                 className="rounded p-2 bg-stone-700 outline-none mr-2 placeholder-white"
                 style={{ flexGrow: 5 }}
-                value={messageSent}
+                value={sentMessage}
                 placeholder="Type a message..."
-                onChange={(e) => setMessageSent(e.target.value)}
+                onChange={(e) => setSentMessage(e.target.value)}
               />
               <button className="bg-lime-600 rounded py-2 px-4">Send</button>
-            </form>
+            </form> */}
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>

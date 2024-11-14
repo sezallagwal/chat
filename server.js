@@ -24,42 +24,45 @@ app.prepare().then(() => {
     },
   }); //making instance of server
 
-  const clerkIdToSocketMap = {};
+  const userIdToSocketMap = {};
 
   io.on("connection", async (socket) => {
-    const { clerkId } = socket.handshake.query;
+    const { userId } = socket.handshake.query;
     // event listener
-    if (clerkId) {
-      // Map clerkId to socket.id
-      clerkIdToSocketMap[clerkId] = socket.id;
+    if (userId) {
+      // Map userId to socket.id
+      userIdToSocketMap[userId] = socket.id;
       console.log(
-        `User with clerkId: ${clerkId} connected with socket id: ${socket.id}`
+        `User with userId: ${userId} connected with socket id: ${socket.id}`
       );
     }
 
     socket.on("disconnect", () => {
-      if (clerkId) {
-        delete clerkIdToSocketMap[clerkId];
-        console.log(`User with clerkId: ${clerkId} disconnected`);
+      if (userId) {
+        delete userIdToSocketMap[userId];
+        console.log(`User with userId: ${userId} disconnected`);
       }
     });
 
-    socket.on("message", async (data) => {
+    socket.on("message", async ({roomId, participants, senderId, content}) => {
       try {
-        console.log(data);
-        const targetSocketId = clerkIdToSocketMap[data.receiverId];
-        console.log(`Mapped clerk IDs: `, clerkIdToSocketMap);
-        if (targetSocketId) {
-          // Emit message to receiver's socket ID
-          io.to(targetSocketId).emit("message", { senderId: data.senderId, content: data.content });
-          console.log(
-            `Message sent to receiver with socket id: ${targetSocketId}`
-          );
-        } else {
-          console.log("User is offline, message not sent.");
-        }
-
-        const message = new Message(data);
+        participants.forEach(participant => {
+          const targetSocketId = userIdToSocketMap[participant];
+          console.log(`Mapped user IDs: `, userIdToSocketMap);
+          if (targetSocketId) {
+            // Emit message to receiver's socket ID
+            socket.broadcast.to(targetSocketId).emit("message", { senderId, content });
+            // io.to(targetSocketId).emit("message", { senderId, content });
+            console.log(
+              `Message sent to receiver with socket id: ${targetSocketId}`
+            );
+          } else {
+            console.log("User is offline, message not sent.");
+          }
+        });
+    
+        //todo : valid
+        const message = new Message({roomId, participants, senderId, content});
         await message.save();
       } catch (error) {
         console.log(error, "Error in saving message");
