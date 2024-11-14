@@ -21,6 +21,13 @@ export default function Home() {
   }
 
   interface User {
+    // _id: string;
+    username: string;
+    email: string;
+    clerkId: string;
+    profileImage: string;
+  }
+  interface Userr {
     _id: string;
     username: string;
     email: string;
@@ -47,7 +54,7 @@ export default function Home() {
   const [socket, setSocket] = useState<Socket | null>(null);
   // const [isUserCreated, setIsUserCreated] = useState(false);
   const [userDetails, setUserDetails] = useState<User | null>(null);
-  const [currentUserData, setCurrentUserData] = useState<User | null>(null);
+  const [currentUserData, setCurrentUserData] = useState<Userr | null>(null);
 
   // const [sentMessage, setSentMessage] = useState<string>("");
   // const [receivedMessage, setReceivedMessage] = useState<string[]>([]); // todo: array?
@@ -67,7 +74,6 @@ export default function Home() {
   useEffect(() => {
     if (user) {
       setUserDetails({
-        _id: user.id,
         username: user.username || "",
         email: user.emailAddresses[0].emailAddress,
         clerkId: user.id,
