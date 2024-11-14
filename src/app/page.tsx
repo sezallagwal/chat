@@ -9,7 +9,6 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import "./globals.css";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SignedIn, UserButton } from "@clerk/nextjs";
 import { useUser } from "@clerk/nextjs";
@@ -50,7 +49,7 @@ export default function Home() {
   const [userDetails, setUserDetails] = useState<User | null>(null);
   const [currentUserData, setCurrentUserData] = useState<User | null>(null);
 
-  const [sentMessage, setSentMessage] = useState<string>("");
+  // const [sentMessage, setSentMessage] = useState<string>("");
   // const [receivedMessage, setReceivedMessage] = useState<string[]>([]); // todo: array?
   // const [chatHistory, setChatHistory] = useState<Message[]>([]);
   // const [afterSearchUser, setAfterSearchUser] = useState<string>("");
@@ -385,12 +384,12 @@ export default function Home() {
             <Card className="rounded-sm h-full bg-[#171717] border-transparent mr-1 p-1 text-white flex flex-col gap-1">
               <div className="flex flex-col gap-1">
                 <div className="flex gap-1">
-                  <Input
+                  <input
                     className="bg-stone-700 border-transparent"
                     placeholder="Enter Username"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                  ></Input>
+                  ></input>
                   <Button className="bg-lime-600 rounded py-2 px-4">
                     Search
                   </Button>
