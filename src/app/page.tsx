@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SignedIn, UserButton } from "@clerk/nextjs";
 import { useUser } from "@clerk/nextjs";
-import { set } from "mongoose";
 
 export default function Home() {
   interface Message {
@@ -47,28 +46,24 @@ export default function Home() {
   const { user } = useUser();
   // const [stream, setStream] = useState<MediaStream | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [isUserCreated, setIsUserCreated] = useState(false);
+  // const [isUserCreated, setIsUserCreated] = useState(false);
   const [userDetails, setUserDetails] = useState<User | null>(null);
   const [currentUserData, setCurrentUserData] = useState<User | null>(null);
 
   const [sentMessage, setSentMessage] = useState<string>("");
   // const [receivedMessage, setReceivedMessage] = useState<string[]>([]); // todo: array?
-  const [chatHistory, setChatHistory] = useState<Message[]>([]);
-  const [afterSearchUser, setAfterSearchUser] = useState<string>("");
-  const [username, setUsername] = useState<string>("");
+  // const [chatHistory, setChatHistory] = useState<Message[]>([]);
+  // const [afterSearchUser, setAfterSearchUser] = useState<string>("");
+  // const [username, setUsername] = useState<string>("");
 
   const [searchTerm, setSearchTerm] = useState("");
   const [message, setMessage] = useState("");
   const [selectedChat, setSelectedChat] = useState<RoomResponse | null>(null);
   const [filteredChats, setFilteredChats] = useState<Chat[]>([]);
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
-  const [chats, setChats] = useState<Chat[]>([
-    { _id: "1", username: "Alice", messages: ["Hello there!"] },
-    { _id: "2", username: "Bob", messages: ["Hi, how are you?"] },
-    // Add more initial chat data as needed
-  ]);
+  const [chats, setChats] = useState<Chat[]>([]);
 
-  const [room, setRoom] = useState<Room[]>([]);
+  // const [room, setRoom] = useState<Room[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -100,7 +95,7 @@ export default function Home() {
 
           const data = await response.json();
           setCurrentUserData(data.data);
-          setIsUserCreated(true);
+          // setIsUserCreated(true);
           console.log("User created:", data);
         } catch (error) {
           console.error("Error creating user:", error);
@@ -182,68 +177,68 @@ export default function Home() {
   //   fetchChatHistory();
   // }, [isUserCreated, userDetails]);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (socket) {
-      const newSentMessage: Message = {
-        senderId: userDetails?.clerkId || "",
-        receiverId: "user_2ngR68qHg4XdRMpC3wnNgmlRNCz",
-        content: sentMessage,
-      };
-      socket.emit("message", newSentMessage);
-      setChatHistory((prevHistory) => [...prevHistory, newSentMessage]);
-      setSentMessage("");
-    }
-  };
+  // const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  //   e.preventDefault();
+  //   if (socket) {
+  //     const newSentMessage: Message = {
+  //       senderId: userDetails?.clerkId || "",
+  //       receiverId: "user_2ngR68qHg4XdRMpC3wnNgmlRNCz",
+  //       content: sentMessage,
+  //     };
+  //     socket.emit("message", newSentMessage);
+  //     setChatHistory((prevHistory) => [...prevHistory, newSentMessage]);
+  //     setSentMessage("");
+  //   }
+  // };
 
-  const searchUser = async (username: string) => {
-    try {
-      const response = await fetch("/api/searchUser", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username }),
-      });
+  // const searchUser = async (username: string) => {
+  //   try {
+  //     const response = await fetch("/api/searchUser", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({ username }),
+  //     });
 
-      if (!response.ok) {
-        throw new Error("Failed to search user");
-      }
+  //     if (!response.ok) {
+  //       throw new Error("Failed to search user");
+  //     }
 
-      const data = await response.json();
-      document.body.querySelector(".showSidebar")?.classList.toggle("hidden");
-      setUsername("");
-      setAfterSearchUser(data.data.username);
-      setRoom((prevRoom) => [...prevRoom, { roomId: data.data.clerkId }]);
-      console.log("Searched user:", data);
-    } catch (error) {
-      console.error("Error searching user:", error);
-    }
-  };
+  //     const data = await response.json();
+  //     document.body.querySelector(".showSidebar")?.classList.toggle("hidden");
+  //     setUsername("");
+  //     setAfterSearchUser(data.data.username);
+  //     setRoom((prevRoom) => [...prevRoom, { roomId: data.data.clerkId }]);
+  //     console.log("Searched user:", data);
+  //   } catch (error) {
+  //     console.error("Error searching user:", error);
+  //   }
+  // };
 
-  const ShowSidebar = () => {
-    setAfterSearchUser("");
-    document.body.querySelector(".showSidebar")?.classList.toggle("hidden");
-    console.log("sidebar toggled");
-  };
+  // const ShowSidebar = () => {
+  //   setAfterSearchUser("");
+  //   document.body.querySelector(".showSidebar")?.classList.toggle("hidden");
+  //   console.log("sidebar toggled");
+  // };
 
-  const showRoom = async (param: string) => {
-    console.log(param);
-    try {
-      await fetch("/api/room", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          friendId: param,
-          ownId: userDetails?.clerkId,
-        }),
-      });
-    } catch (error) {
-      console.error("Error creating room:", error);
-    }
-  };
+  // const showRoom = async (param: string) => {
+  //   console.log(param);
+  //   try {
+  //     await fetch("/api/room", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({
+  //         friendId: param,
+  //         ownId: userDetails?.clerkId,
+  //       }),
+  //     });
+  //   } catch (error) {
+  //     console.error("Error creating room:", error);
+  //   }
+  // };
 
   // Debounce the search term
   useEffect(() => {
@@ -256,13 +251,23 @@ export default function Home() {
     };
   }, [searchTerm]);
 
-
   socket?.on(message, (msg) => {
     if (selectedChat) {
-      selectedChat.data.messages.push(msg);
+      console.log("received message", msg);
+      setSelectedChat((prevChat) => {
+        if (prevChat) {
+          return {
+            ...prevChat,
+            data: {
+              ...prevChat.data,
+              messages: [...prevChat.data.messages, msg],
+            },
+          };
+        }
+        return prevChat;
+      });
     }
   });
-
 
   useEffect(() => {
     // Fetch chats from the backend when the search term changes
@@ -322,16 +327,28 @@ export default function Home() {
   // Send a new message in the selected chat
   const handleSendMessage = () => {
     if (selectedChat && message.trim()) {
-      selectedChat.data.messages.push({
+      const newMessage: Message = {
         roomId: selectedChat.data.roomId,
         senderId: currentUserData?._id || "",
         content: message,
-      });
+      };
       socket?.emit("message", {
         roomId: selectedChat.data.roomId,
         participants: selectedChat.data.participants,
         senderId: currentUserData?._id || "",
         content: message,
+      });
+      setSelectedChat((prevChat) => {
+        if (prevChat) {
+          return {
+            ...prevChat,
+            data: {
+              ...prevChat.data,
+              messages: [...prevChat.data.messages, newMessage],
+            },
+          };
+        }
+        return prevChat;
       });
       setMessage(""); // Clear the input field after sending
     }
@@ -340,7 +357,7 @@ export default function Home() {
   return (
     <>
       <div className="h-screen bg-black">
-        <nav className="bg-neutral-900 fixed w-full z-10 mb-3">
+        <nav className="bg-neutral-900 fixed w-full z-10 mb-3 rounded-sm">
           <div className="flex justify-around items-center">
             <button className="mt-1">
               <svg
@@ -365,7 +382,7 @@ export default function Home() {
             style={{ minWidth: "100px", marginBottom: "3px" }}
             defaultSize={25}
           >
-            <Card className="h-full bg-[#171717] border-transparent mx-1 p-1 text-white flex flex-col gap-1">
+            <Card className="rounded-sm h-full bg-[#171717] border-transparent mr-1 p-1 text-white flex flex-col gap-1">
               <div className="flex flex-col gap-1">
                 <div className="flex gap-1">
                   <Input
@@ -387,10 +404,10 @@ export default function Home() {
                   </div>
                 )} */}
               </div>
-              <div className="bg-neutral-800 flex flex-col gap-1 h-full rounded p-2 showSidebar">
+              <div className="flex flex-col gap-2 h-full p-1 showSidebar">
                 {filteredChats.map((chat) => (
                   <div
-                    className="bg-stone-700 px-1 py-2 rounded-sm overflow-hidden text-white"
+                    className="bg-stone-700 px-2 py-3 rounded-sm overflow-hidden text-white"
                     key={chat._id}
                     onClick={() => handleChatSelect(chat)}
                   >
@@ -405,7 +422,7 @@ export default function Home() {
           />
           <ResizablePanel
             defaultSize={75}
-            className="scrollbar-thumb scrollbar rounded-xl"
+            className="scrollbar-thumb scrollbar rounded-sm"
             style={{
               minWidth: "800px",
               overflowY: "auto",
@@ -413,50 +430,59 @@ export default function Home() {
               backgroundColor: "#171717",
             }}
           >
-            <Card className="text-white chat-history bg-neutral-900 p-2 scrollbar scrollbar-thumb overflow-auto h-[92%] border-transparent">
+            <Card className="text-white chat-history bg-neutral-900 py-2 scrollbar scrollbar-thumb overflow-auto h-[100%] border-transparent">
               {selectedChat ? (
                 <>
                   {selectedChat.data.messages.length > 0 ? (
-                    selectedChat.data.messages.map((msg, index) => (
-                      <div key={index}>
-                        {msg.senderId === currentUserData?._id ? (
-                          <div className="flex justify-end w-full">
-                            <div className="bg-lime-600 w-fit p-2 m-2 rounded-xl">
-                              {msg.content}
-                            </div>{" "}
-                          </div>
-                        ) : (
-                          <div className="flex justify-start w-full">
-                            <div className="bg-lime-50 text-black w-fit p-2 m-2 rounded-xl">
-                              {msg.content}
-                            </div>{" "}
-                          </div>
-                        )}
-                      </div>
-                    ))
+                    <div className="h-[92%] overflow-auto pl-2">
+                      {selectedChat.data.messages.map((msg, index) => (
+                        <div key={index} className="">
+                          {msg.senderId === currentUserData?._id ? (
+                            <div className="flex justify-end w-full">
+                              <div className="bg-lime-600 w-fit p-2 m-2 rounded-xl">
+                                {msg.content}
+                              </div>{" "}
+                            </div>
+                          ) : (
+                            <div className="flex justify-start w-full">
+                              <div className="bg-lime-50 text-black w-fit p-2 m-2 rounded-xl">
+                                {msg.content}
+                              </div>{" "}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   ) : (
-                    <div>No messages to show</div>
+                    <div className="h-[92%] overflow-auto pl-2 flex justify-center items-center">
+                      <div className="w-fit p-3 bg-lime-600 rounded-xl">
+                        No messages to display!
+                      </div>
+                    </div>
                   )}
 
-                  <div className="flex items-center">
+                  <div className="bg-neutral-900 flex px-3 text-white pt-2">
                     <input
                       type="text"
-                      className="flex-1 p-2 border rounded text-black"
+                      className="rounded p-2 bg-stone-700 outline-none mr-2 placeholder-white"
+                      style={{ flexGrow: 5 }}
                       placeholder="Type your message..."
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                     />
                     <button
                       onClick={handleSendMessage}
-                      className="p-2 ml-2 bg-blue-500 text-white rounded"
+                      className="bg-lime-600 rounded py-2 px-4"
                     >
                       Send
                     </button>
                   </div>
                 </>
               ) : (
-                <div className="flex-1 p-4">
-                  Select a chat to start talking.
+                <div className="h-[92%] overflow-auto pl-2 flex justify-center items-center">
+                  <div className="w-fit p-3 bg-lime-600 rounded-xl">
+                    Select a Chat to Start Talking
+                  </div>
                 </div>
               )}
               <div>
