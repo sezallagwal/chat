@@ -113,9 +113,9 @@ export default function Home() {
 
   useEffect(() => {
     if (currentUserData) {
-      const hostname = process.env.HOSTNAME;
+      const domain = process.env.DOMAIN;
       const port = process.env.PORT;
-      const newSocket = io(`http://${hostname}:${port}`, {
+      const newSocket = io(`https://${domain}:${port}`, {
         query: { userId: currentUserData?._id },
       });
       setSocket(newSocket);

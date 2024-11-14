@@ -7,10 +7,10 @@ import next from "next";
 await connectDB(); //connecting to database
 
 const dev = process.env.NODE_ENV !== "production";
-const hostname = process.env.HOSTNAME;
+const domain = process.env.DOMAIN;
 const port = process.env.PORT;
 
-const app = next({ dev, hostname, port });
+const app = next({ dev, domain, port });
 const handler = app.getRequestHandler();
 
 app.prepare().then(() => {
@@ -86,6 +86,6 @@ app.prepare().then(() => {
       process.exit(1);
     })
     .listen(port, () => {
-      console.log(`Ready on http://${hostname}:${port}`);
+      console.log(`Ready on https://${domain}:${port}`);
     });
 });
