@@ -7,7 +7,7 @@ import next from "next";
 await connectDB(); //connecting to database
 
 const dev = process.env.NODE_ENV !== "production";
-const hostname = "localhost";
+const hostname = process.env.HOSTNAME;
 const port = process.env.PORT;
 
 const app = next({ dev, hostname, port });
@@ -44,30 +44,40 @@ app.prepare().then(() => {
       }
     });
 
-    socket.on("message", async ({roomId, participants, senderId, content}) => {
-      try {
-        participants.forEach(participant => {
-          const targetSocketId = userIdToSocketMap[participant];
-          console.log(`Mapped user IDs: `, userIdToSocketMap);
-          if (targetSocketId) {
-            // Emit message to receiver's socket ID
-            socket.broadcast.to(targetSocketId).emit("message", {roomId, senderId, content });
-            // io.to(targetSocketId).emit("message", { senderId, content });
-            console.log(
-              `Message sent to receiver with socket id: ${targetSocketId}`
-            );
-          } else {
-            console.log("User is offline, message not sent.");
-          }
-        });
-    
-        //todo : valid
-        const message = new Message({roomId, participants, senderId, content});
-        await message.save();
-      } catch (error) {
-        console.log(error, "Error in saving message");
+    socket.on(
+      "message",
+      async ({ roomId, participants, senderId, content }) => {
+        try {
+          participants.forEach((participant) => {
+            const targetSocketId = userIdToSocketMap[participant];
+            console.log(`Mapped user IDs: `, userIdToSocketMap);
+            if (targetSocketId) {
+              // Emit message to receiver's socket ID
+              socket.broadcast
+                .to(targetSocketId)
+                .emit("message", { roomId, senderId, content });
+              // io.to(targetSocketId).emit("message", { senderId, content });
+              console.log(
+                `Message sent to receiver with socket id: ${targetSocketId}`
+              );
+            } else {
+              console.log("User is offline, message not sent.");
+            }
+          });
+
+          //todo : valid
+          const message = new Message({
+            roomId,
+            participants,
+            senderId,
+            content,
+          });
+          await message.save();
+        } catch (error) {
+          console.log(error, "Error in saving message");
+        }
       }
-    });
+    );
   });
 
   server
