@@ -117,6 +117,7 @@ export default function Home() {
       const port = process.env.NEXT_PUBLIC_PORT;
       const newSocket = io(`https://${domain}:${port}`, {
         query: { userId: currentUserData?._id },
+        transports: ["websocket"],
       });
       setSocket(newSocket);
       newSocket.on("connect", () => {
