@@ -4,7 +4,7 @@ import connectDB from "./db.js";
 import Message from "./models/Message.model.js";
 import next from "next";
 
-await connectDB(); //connecting to database
+await connectDB();
 
 const dev = process.env.NODE_ENV !== "production";
 const domain = process.env.DOMAIN;
@@ -14,7 +14,7 @@ const app = next({ dev, domain, port });
 const handler = app.getRequestHandler();
 
 app.prepare().then(() => {
-  const server = createServer(handler); //creating server
+  const server = createServer(handler);
 
   const io = new Server(server, {
     cors: {
@@ -22,15 +22,13 @@ app.prepare().then(() => {
       credentials: true,
       methods: ["GET", "POST"],
     },
-  }); //making instance of server
+  });
 
   const userIdToSocketMap = {};
 
   io.on("connection", async (socket) => {
     const { userId } = socket.handshake.query;
-    // event listener
     if (userId) {
-      // Map userId to socket.id
       userIdToSocketMap[userId] = socket.id;
       console.log(
         `User with userId: ${userId} connected with socket id: ${socket.id}`
@@ -52,11 +50,9 @@ app.prepare().then(() => {
             const targetSocketId = userIdToSocketMap[participant];
             console.log(`Mapped user IDs: `, userIdToSocketMap);
             if (targetSocketId) {
-              // Emit message to receiver's socket ID
               socket.broadcast
                 .to(targetSocketId)
                 .emit("message", { roomId, senderId, content });
-              // io.to(targetSocketId).emit("message", { senderId, content });
               console.log(
                 `Message sent to receiver with socket id: ${targetSocketId}`
               );
@@ -65,7 +61,7 @@ app.prepare().then(() => {
             }
           });
 
-          //todo : valid
+          //todo : validate
           const message = new Message({
             roomId,
             participants,
@@ -86,6 +82,6 @@ app.prepare().then(() => {
       process.exit(1);
     })
     .listen(port, () => {
-      console.log(`Ready on https://${domain}:${port}`);
+      console.log(`Ready on http://${domain}:${port}`);
     });
 });
