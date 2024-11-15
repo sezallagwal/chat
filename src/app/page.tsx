@@ -104,7 +104,7 @@ export default function Home() {
     if (currentUserData) {
       const domain = process.env.NEXT_PUBLIC_DOMAIN;
       const port = process.env.NEXT_PUBLIC_PORT;
-      const newSocket = io(`http://${domain}:${port}`, {
+      const newSocket = io(`https://${domain}:${port}`, {
         query: { userId: currentUserData?._id },
       });
       setSocket(newSocket);
