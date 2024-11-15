@@ -102,9 +102,9 @@ export default function Home() {
 
   useEffect(() => {
     if (currentUserData) {
-      const domain = process.env.NEXT_PUBLIC_DOMAIN;
-      const port = process.env.NEXT_PUBLIC_PORT;
-      const newSocket = io(`https://${domain}:${port}`, {
+      // const domain = process.env.NEXT_PUBLIC_DOMAIN;
+      // const port = process.env.NEXT_PUBLIC_PORT;
+      const newSocket = io({
         query: { userId: currentUserData?._id },
       });
       setSocket(newSocket);
@@ -113,10 +113,6 @@ export default function Home() {
       });
       newSocket.on("disconnect", () => {
         console.log("disconnected", newSocket.id);
-      });
-
-      newSocket.on("message", (message: Message) => {
-        console.log("received message", message);
       });
 
       return () => {
@@ -157,7 +153,7 @@ export default function Home() {
         try {
           console.log(debouncedSearchTerm);
           const response = await fetch(
-            `/api/searchUser?username=${searchTerm}`
+            `/api/searchUser?username=${debouncedSearchTerm}`
           );
           if (!response.ok) {
             throw new Error("Failed to fetch chats");
@@ -234,25 +230,22 @@ export default function Home() {
   };
 
   useEffect(() => {
-    socket?.on(message, (msg) => {
-      if (selectedChat) {
-        console.log("selected chat", selectedChat);
-        console.log("received message", msg);
-        setSelectedChat((prevChat) => {
-          if (prevChat) {
-            return {
-              ...prevChat,
-              data: {
-                ...prevChat.data,
-                messages: [...prevChat.data.messages, msg],
-              },
-            };
-          }
-          return prevChat;
-        });
-      }
+  socket?.on("message", (msg) => {
+      // console.log("received message", msg);
+      setSelectedChat((prevChat) => {
+        if (prevChat) {
+          return {
+            ...prevChat,
+            data: {
+              ...prevChat.data,
+              messages: [...prevChat.data.messages, msg],
+            },
+          };
+        }
+        return prevChat;
+      });
     });
-  }, [selectedChat]);
+  },[socket]);
 
   return (
     <>
