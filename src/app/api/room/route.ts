@@ -11,6 +11,9 @@ export async function GET(req: NextRequest) {
 
     const userId = url.searchParams.get("userId");
     const chatUserId = url.searchParams.get("chatUserId");
+    const username = url.searchParams.get("username");
+    const profileImage = url.searchParams.get("profileImage");
+    console.log(username);
     // Check if a room with these participants already exists
     let room = await Room.findOne({
       participants: { $all: [userId, chatUserId] },
@@ -24,19 +27,23 @@ export async function GET(req: NextRequest) {
         data: {
           roomId: room._id,
           participants: room.participants,
-          messages: [], // Empty messages for a new room
+          username,
+          profileImage,
+          messages: [], 
         },
       });
     } else {
-      // If the room exists, fetch all messages associated with this room
-      const messages = await Message.find({ roomId: room._id }).sort({ createdAt: 1 }); // Sort by creation time if needed
+
+      const messages = await Message.find({ roomId: room._id }).sort({ createdAt: 1 });
 
       return NextResponse.json({
         message: "Room found successfully",
         data: {
           roomId: room._id,
           participants: room.participants,
-          messages, // Include messages in the response
+          username,
+          profileImage,
+          messages,
         },
       });
     }
