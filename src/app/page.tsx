@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Socket, io } from "socket.io-client";
 import { Card } from "@/components/ui/card";
 
@@ -9,9 +9,9 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import "./globals.css";
-import { Button } from "@/components/ui/button";
 import { SignedIn, UserButton } from "@clerk/nextjs";
 import { useUser } from "@clerk/nextjs";
+import Image from "next/image";
 
 export default function Home() {
   interface Message {
@@ -37,16 +37,18 @@ export default function Home() {
 
   interface RoomResponse {
     data: {
+      profileImage: string;
       roomId: string;
+      username: string;
       participants: string[];
       messages: Message[];
     };
   }
 
   type Chat = {
+    profileImage: string;
     _id: string;
     username: string;
-    messages: string[];
   };
 
   const { user } = useUser();
@@ -60,6 +62,7 @@ export default function Home() {
   const [filteredChats, setFilteredChats] = useState<Chat[]>([]);
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
   const [chats, setChats] = useState<Chat[]>([]);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user) {
@@ -90,7 +93,7 @@ export default function Home() {
 
           const data = await response.json();
           setCurrentUserData(data.data);
-          console.log("User created:", data);
+          // console.log("User created:", data);
         } catch (error) {
           console.error("Error creating user:", error);
         }
@@ -151,7 +154,7 @@ export default function Home() {
     const fetchChats = async () => {
       if (debouncedSearchTerm.trim()) {
         try {
-          console.log(debouncedSearchTerm);
+          // console.log(debouncedSearchTerm);
           const response = await fetch(
             `/api/searchUser?username=${debouncedSearchTerm}`
           );
@@ -159,7 +162,7 @@ export default function Home() {
             throw new Error("Failed to fetch chats");
           }
           const data = await response.json();
-          console.log("users found", data);
+          // console.log("users found", data);
           setFilteredChats(data);
         } catch (error) {
           console.error("Failed to fetch chats:", error);
@@ -170,30 +173,42 @@ export default function Home() {
     };
 
     fetchChats();
-  }, [debouncedSearchTerm]);
+  }, [debouncedSearchTerm, chats]);
 
   const handleChatSelect = async (chat: Chat) => {
     if (currentUserData) {
       const userId = currentUserData._id;
       const chatUserId = chat._id;
+      const username = chat.username;
+      const profileImage = chat.profileImage;
 
       try {
         const response = await fetch(
-          `/api/room?userId=${userId}&chatUserId=${chatUserId}`
+          `/api/room?userId=${userId}&chatUserId=${chatUserId}&username=${username}&profileImage=${profileImage}`
         );
         if (!response.ok) {
           throw new Error("Failed to fetch or create room");
         }
         const room = await response.json();
-        console.log("Room found or created:", room);
+        // console.log("Room found or created:", room);
         setSearchTerm("");
         setSelectedChat(room);
         setChats((prevChats) => {
-          if (!prevChats.some((c) => c._id === chat._id)) {
+          if (!prevChats.some((c) => c.username === chat.username)) {
             return [...prevChats, chat];
+          } else {
+            return prevChats;
           }
-          return prevChats;
         });
+        const sidebar = await fetch(
+          `/api/sidebar?userId=${userId}&chatUserId=${chatUserId}&username=${username}&profileImage=${profileImage}`
+        );
+
+        if (!sidebar.ok) {
+          throw new Error("Failed to fetch sidebar");
+        }
+        // const sidebarData = await sidebar.json();
+        // console.log("Sidebar data", sidebarData);
       } catch (error) {
         console.error("Error fetching or creating room:", error);
       }
@@ -230,8 +245,45 @@ export default function Home() {
   };
 
   useEffect(() => {
-  socket?.on("message", (msg) => {
-      // console.log("received message", msg);
+    const fetchSidebar = async () => {
+      if (currentUserData) {
+        const userId = currentUserData._id;
+        try {
+          const sidebar = await fetch(`/api/sidebarUsers?userId=${userId}`);
+
+          if (!sidebar.ok) {
+            throw new Error("Failed to fetch sidebar");
+          }
+          const sidebarData = await sidebar.json();
+          // console.log("Sidebar data", sidebarData);
+          setChats((prevChats) => {
+            if (
+              !prevChats.some(
+                (c) => c.username === sidebarData.data.allSidebarUsers.username
+              )
+            ) {
+              return [
+                ...prevChats,
+                {
+                  _id: sidebarData.data.allSidebarUsers._id,
+                  username: sidebarData.data.allSidebarUsers.username,
+                  profileImage: sidebarData.data.allSidebarUsers.profileImage,
+                },
+              ];
+            }
+            return prevChats;
+          });
+          setChats(sidebarData.data.allSidebarUsers);
+        } catch (error) {
+          console.error("Error fetching or creating room:", error);
+        }
+      }
+    };
+    fetchSidebar();
+  }, [currentUserData]);
+
+  useEffect(() => {
+    socket?.on("message", (msg) => {
       setSelectedChat((prevChat) => {
         if (prevChat) {
           return {
@@ -245,58 +297,76 @@ export default function Home() {
         return prevChat;
       });
     });
-  },[socket]);
+  }, [socket]);
+
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop =
+        chatContainerRef.current.scrollHeight;
+    }
+  }, [selectedChat]); 
 
   return (
     <>
       <div className="h-screen bg-black">
-        <nav className="bg-neutral-900 fixed w-full z-10 mb-3 rounded-sm">
-          <div className="flex justify-around items-center">
-            <button className="mt-1">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                height="48px"
-                viewBox="0 -960 960 960"
-                width="48px"
-                fill="#65a30d"
-              >
-                <path d="M904.31-55 741.35-217.96H311.87q-33.26 0-56.24-23.14-22.98-23.15-22.98-56.64v-80H665.3q32.67 0 55.94-22.98 23.28-22.98 23.28-56.24v-272.08h80q33.49 0 56.64 23.14 23.15 23.15 23.15 56.64V-55ZM135.48-461.74l55.21-55.22H605.3v-309.26H135.48v364.48ZM55.69-270.96v-555.26q0-33.49 23.15-56.63Q101.99-906 135.48-906H605.3q32.67 0 55.94 23.15 23.28 23.14 23.28 56.63v309.26q0 33.26-23.28 56.24-23.27 22.98-55.94 22.98H222.48L55.69-270.96Zm79.79-246v-309.26 309.26Z" />
-              </svg>
-            </button>
-            <div className="flex gap-8">
-              <SignedIn>
-                <UserButton />
-              </SignedIn>
-            </div>
-          </div>
-        </nav>
-        <ResizablePanelGroup direction="horizontal" className="pt-[55px]">
+        <ResizablePanelGroup direction="horizontal" className="">
           <ResizablePanel
-            style={{ minWidth: "100px", marginBottom: "3px" }}
+            style={{
+              minWidth: "300px",
+              marginBottom: "3px",
+              maxWidth: "600px",
+            }}
             defaultSize={25}
           >
-            <Card className="rounded-sm h-full bg-[#171717] border-transparent mr-1 p-1 text-white flex flex-col gap-1">
+            <nav className="bg-neutral-800 z-10 mr-1 px-2 py-[0.35rem] rounded-sm">
+              <div className="flex justify-between items-center">
+                <button className="mt-1">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    height="48px"
+                    viewBox="0 -960 960 960"
+                    width="48px"
+                    fill="#65a30d"
+                  >
+                    <path d="M904.31-55 741.35-217.96H311.87q-33.26 0-56.24-23.14-22.98-23.15-22.98-56.64v-80H665.3q32.67 0 55.94-22.98 23.28-22.98 23.28-56.24v-272.08h80q33.49 0 56.64 23.14 23.15 23.15 23.15 56.64V-55ZM135.48-461.74l55.21-55.22H605.3v-309.26H135.48v364.48ZM55.69-270.96v-555.26q0-33.49 23.15-56.63Q101.99-906 135.48-906H605.3q32.67 0 55.94 23.15 23.28 23.14 23.28 56.63v309.26q0 33.26-23.28 56.24-23.27 22.98-55.94 22.98H222.48L55.69-270.96Zm79.79-246v-309.26 309.26Z" />
+                  </svg>
+                </button>
+                <div className="flex gap-8">
+                  <SignedIn>
+                    <UserButton appearance={{ elements: { userButtonAvatarBox: 'w-[46px] h-[46px]' } }} />
+                  </SignedIn>
+                </div>
+              </div>
+            </nav>
+            <Card className="px-1 pt-2 rounded-sm h-full bg-[#171717] border-transparent mr-1 text-white flex flex-col gap-1">
               <div className="flex flex-col gap-1">
                 <div className="flex gap-1">
                   <input
-                    className="bg-stone-700 border-transparent flex-grow py-1 px-2 rounded"
+                    className="bg-stone-700 border-transparent flex-grow py-3 px-2 rounded outline-none"
                     placeholder="Enter Username"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   ></input>
-                  <Button className="bg-lime-600 rounded py-2 px-4">
-                    Search
-                  </Button>
+                  <button className="bg-lime-600 rounded px-4">Search</button>
                 </div>
               </div>
-              <div className="flex flex-col gap-2 h-full py-1 showSidebar">
+              <div className="flex flex-col gap-2 h-full py-1 showSidebar text-lg">
                 {filteredChats.map((chat) => (
                   <div
-                    className="bg-stone-700 px-2 py-3 rounded-sm overflow-hidden text-white"
+                    className="bg-stone-700 px-2 py-2 rounded-sm overflow-hidden text-white flex items-center gap-2 cursor-pointer"
                     key={chat._id}
                     onClick={() => handleChatSelect(chat)}
                   >
-                    {chat.username}
+                    <div>
+                      <Image
+                        src={chat.profileImage}
+                        alt={`${chat.username}'s profile image`}
+                        width={50}
+                        height={50}
+                        className="rounded-full"
+                      />{" "}
+                    </div>
+                    <div className="">{chat.username}</div>
                   </div>
                 ))}
               </div>
@@ -307,7 +377,7 @@ export default function Home() {
           />
           <ResizablePanel
             defaultSize={75}
-            className="scrollbar-thumb scrollbar rounded-sm"
+            className="scrollbar-thumb scrollbar"
             style={{
               minWidth: "800px",
               overflowY: "auto",
@@ -315,18 +385,34 @@ export default function Home() {
               backgroundColor: "#171717",
             }}
           >
-            <Card className="text-white chat-history bg-neutral-900 py-2 scrollbar scrollbar-thumb overflow-auto h-[100%] border-transparent">
+            <Card className="text-white chat-history bg-neutral-900 scrollbar scrollbar-thumb overflow-auto h-[100%] border-transparent w-full rounded-sm">
               {selectedChat ? (
                 <>
+                  <div className="bg-neutral-800 z-10 mr-1 px-2 py-2 text-lg rounded-sm mb-2 flex gap-4 items-center backdrop-blur-3xl">
+                    <Image
+                      loading="eager"
+                      src={selectedChat.data.profileImage}
+                      alt={`${selectedChat.data.username}'s profile image`}
+                      width={44}
+                      height={44}
+                      className="rounded-full"
+                    />
+                    <div>{selectedChat.data.username}</div>
+                  </div>
                   {selectedChat.data.messages.length > 0 ? (
-                    <div className="h-[92%] overflow-auto pl-2">
+                    <div
+                      className="h-[83%] overflow-auto pl-2 w-full"
+                      ref={chatContainerRef}
+                    >
                       {selectedChat.data.messages.map((msg, index) => (
                         <div key={index} className="">
                           {msg.senderId === currentUserData?._id ? (
                             <div className="flex justify-end w-full">
-                              <div className="bg-lime-600 w-fit p-2 m-2 rounded-xl">
-                                {msg.content}
-                              </div>{" "}
+                              <div className="max-w-1/2">
+                                <div className="bg-lime-600 w-fit p-2 m-2 rounded-xl overflow-y-auto">
+                                  {msg.content}
+                                </div>{" "}
+                              </div>
                             </div>
                           ) : (
                             <div className="flex justify-start w-full">
@@ -339,7 +425,7 @@ export default function Home() {
                       ))}
                     </div>
                   ) : (
-                    <div className="h-[92%] overflow-auto pl-2 flex justify-center items-center">
+                    <div className="h-[83%] overflow-auto pl-2 flex justify-center items-center">
                       <div className="w-fit p-3 bg-lime-600 rounded-xl">
                         No messages to display!
                       </div>
@@ -349,11 +435,16 @@ export default function Home() {
                   <div className="bg-neutral-900 flex px-3 text-white pt-2">
                     <input
                       type="text"
-                      className="rounded p-2 bg-stone-700 outline-none mr-2 placeholder-white"
+                      className="rounded p-3 bg-stone-700 outline-none mr-2 placeholder-white"
                       style={{ flexGrow: 5 }}
                       placeholder="Type your message..."
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          handleSendMessage();
+                        }
+                      }}
                     />
                     <button
                       onClick={handleSendMessage}
