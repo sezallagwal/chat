@@ -74,6 +74,38 @@ app.prepare().then(() => {
         }
       }
     );
+
+    socket.on("typing", ({ roomId, participants, senderId }) => {
+      participants.forEach((participant) => {
+        const targetSocketId = userIdToSocketMap[participant];
+        if (targetSocketId) {
+          socket.broadcast
+            .to(targetSocketId)
+            .emit("typing", { roomId, senderId });
+          console.log(
+            `Typing event sent to receiver with socket id: ${targetSocketId}`
+          );
+        } else {
+          console.log("User is offline, typing event not sent.");
+        }
+      });
+    });
+
+    socket.on("stop-typing", ({ roomId, participants, senderId }) => {
+      participants.forEach((participant) => {
+        const targetSocketId = userIdToSocketMap[participant];
+        if (targetSocketId) {
+          socket.broadcast
+            .to(targetSocketId)
+            .emit("stop-typing", { roomId, senderId });
+          console.log(
+            `Stop typing event sent to receiver with socket id: ${targetSocketId}`
+          );
+        } else {
+          console.log("User is offline, stop typing event not sent.");
+        }
+      });
+    });
   });
 
   server

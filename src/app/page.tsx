@@ -63,6 +63,8 @@ export default function Home() {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
   const [chats, setChats] = useState<Chat[]>([]);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [typing, setTyping] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -179,6 +181,7 @@ export default function Home() {
     if (currentUserData) {
       const userId = currentUserData._id;
       const chatUserId = chat._id;
+      console.log("chat user id", chatUserId);
       const username = chat.username;
       const profileImage = chat.profileImage;
 
@@ -240,6 +243,13 @@ export default function Home() {
         }
         return prevChat;
       });
+
+      socket?.emit("stop-typing", {
+        roomId: selectedChat.data.roomId,
+        participants: selectedChat.data.participants,
+        senderId: currentUserData?._id || "",
+      });
+
       setMessage("");
     }
   };
@@ -300,11 +310,54 @@ export default function Home() {
   }, [socket]);
 
   useEffect(() => {
+    socket?.on("typing", () => {
+      setIsTyping(true);
+      console.log("got typing true");
+    });
+
+    socket?.on("stop-typing", () => {
+      setIsTyping(false);
+      console.log("got stop typing");
+    });
+
+    return () => {
+      socket?.off("typing");
+      socket?.off("stop-typing");
+    };
+  }, [socket]);
+
+  const handleTyping = () => {
+    console.log("typing");
+    if (!typing) {
+      setTyping(true);
+      console.log("set typing true");
+      socket?.emit("typing", {
+        roomId: selectedChat?.data.roomId,
+        participants: selectedChat?.data.participants,
+        senderId: currentUserData?._id || "",
+      });
+    }
+
+    const debounceTimeout = setTimeout(() => {
+      setTyping(false);
+      console.log("set typing false");
+      socket?.emit("stop-typing", {
+        roomId: selectedChat?.data.roomId,
+        participants: selectedChat?.data.participants,
+        senderId: currentUserData?._id || "",
+      });
+      console.log("timeout typing");
+    }, 3000);
+
+    return () => clearTimeout(debounceTimeout);
+  };
+
+  useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop =
         chatContainerRef.current.scrollHeight;
     }
-  }, [selectedChat]); 
+  }, [selectedChat]);
 
   return (
     <>
@@ -333,7 +386,11 @@ export default function Home() {
                 </button>
                 <div className="flex gap-8">
                   <SignedIn>
-                    <UserButton appearance={{ elements: { userButtonAvatarBox: 'w-[46px] h-[46px]' } }} />
+                    <UserButton
+                      appearance={{
+                        elements: { userButtonAvatarBox: "w-[46px] h-[46px]" },
+                      }}
+                    />
                   </SignedIn>
                 </div>
               </div>
@@ -366,7 +423,8 @@ export default function Home() {
                         className="rounded-full"
                       />{" "}
                     </div>
-                    <div className="">{chat.username}</div>
+                    <div className="">{chat.username}</div> {/*sidebar*/}
+                    {isTyping ? "typing..." : " "}
                   </div>
                 ))}
               </div>
@@ -398,6 +456,7 @@ export default function Home() {
                       className="rounded-full"
                     />
                     <div>{selectedChat.data.username}</div>
+                    {isTyping ? "typing..." : " "}
                   </div>
                   {selectedChat.data.messages.length > 0 ? (
                     <div
@@ -439,7 +498,10 @@ export default function Home() {
                       style={{ flexGrow: 5 }}
                       placeholder="Type your message..."
                       value={message}
-                      onChange={(e) => setMessage(e.target.value)}
+                      onChange={(e) => {
+                        setMessage(e.target.value);
+                        handleTyping();
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           handleSendMessage();
