@@ -12,6 +12,7 @@ import "./globals.css";
 import { SignedIn, UserButton } from "@clerk/nextjs";
 import { useUser } from "@clerk/nextjs";
 import Image from "next/image";
+import { set } from "mongoose";
 
 export default function Home() {
   interface Message {
@@ -49,6 +50,7 @@ export default function Home() {
     profileImage: string;
     _id: string;
     username: string;
+    chatUserId?: string;
   };
 
   const { user } = useUser();
@@ -93,7 +95,7 @@ export default function Home() {
 
           const data = await response.json();
           setCurrentUserData(data.data);
-          // console.log("User created:", data);
+          console.log("User created:", data);
         } catch (error) {
           console.error("Error creating user:", error);
         }
@@ -162,12 +164,16 @@ export default function Home() {
             throw new Error("Failed to fetch chats");
           }
           const data = await response.json();
-          // console.log("users found", data);
+          console.log("users found", data);
           setFilteredChats(data);
         } catch (error) {
           console.error("Failed to fetch chats:", error);
         }
       } else {
+        console.log(
+          "seted chats inside filetered chats after debounded clear",
+          chats
+        );
         setFilteredChats(chats);
       }
     };
@@ -176,11 +182,13 @@ export default function Home() {
   }, [debouncedSearchTerm, chats]);
 
   const handleChatSelect = async (chat: Chat) => {
+    console.log("chat", chat);
     if (currentUserData) {
       const userId = currentUserData._id;
       const chatUserId = chat._id;
       const username = chat.username;
       const profileImage = chat.profileImage;
+      console.log(chatUserId);
 
       try {
         const response = await fetch(
@@ -190,9 +198,10 @@ export default function Home() {
           throw new Error("Failed to fetch or create room");
         }
         const room = await response.json();
-        // console.log("Room found or created:", room);
+        console.log("Room found or created:", room);
         setSearchTerm("");
         setSelectedChat(room);
+        console.log("selectedChat in handle chat select", selectedChat);
         setChats((prevChats) => {
           if (!prevChats.some((c) => c.username === chat.username)) {
             return [...prevChats, chat];
@@ -205,17 +214,18 @@ export default function Home() {
         );
 
         if (!sidebar.ok) {
-          throw new Error("Failed to fetch sidebar");
+          throw new Error("Failed to pos data to sidebar");
         }
         // const sidebarData = await sidebar.json();
         // console.log("Sidebar data", sidebarData);
       } catch (error) {
-        console.error("Error fetching or creating room:", error);
+        console.error("error adding user in sidebar:", error);
       }
     }
   };
 
   const handleSendMessage = () => {
+    console.log("selectedChat in handle send message", selectedChat);
     if (selectedChat && message.trim()) {
       const newMessage: Message = {
         roomId: selectedChat.data.roomId,
@@ -238,6 +248,7 @@ export default function Home() {
             },
           };
         }
+        // console.log(selectedChat);
         return prevChat;
       });
       setMessage("");
@@ -255,25 +266,24 @@ export default function Home() {
             throw new Error("Failed to fetch sidebar");
           }
           const sidebarData = await sidebar.json();
-          // console.log("Sidebar data", sidebarData);
-          setChats((prevChats) => {
-            if (
-              !prevChats.some(
-                (c) => c.username === sidebarData.data.allSidebarUsers.username
-              )
-            ) {
-              return [
-                ...prevChats,
-                {
-                  _id: sidebarData.data.allSidebarUsers._id,
-                  username: sidebarData.data.allSidebarUsers.username,
-                  profileImage: sidebarData.data.allSidebarUsers.profileImage,
-                },
-              ];
-            }
-            return prevChats;
+          console.log("Sidebar data", sidebarData);
+          sidebarData.data.allSidebarUsers.forEach((chat: Chat) => {
+            setChats((prevChats) => {
+              if (!prevChats.some((c) => c.username === chat.username)) {
+                return [
+                  ...prevChats,
+                  {
+                    _id: chat.chatUserId || "",
+                    chatUserId: chat.chatUserId || "",
+                    username: chat.username,
+                    profileImage: chat.profileImage,
+                  },
+                ];
+              }
+              return prevChats;
+            });
           });
-          setChats(sidebarData.data.allSidebarUsers);
+          // setChats(sidebarData.data.allSidebarUsers);
         } catch (error) {
           console.error("Error fetching or creating room:", error);
         }
@@ -284,6 +294,8 @@ export default function Home() {
 
   useEffect(() => {
     socket?.on("message", (msg) => {
+      console.log(msg);
+      console.log("selected chat in socket on message",selectedChat)
       setSelectedChat((prevChat) => {
         if (prevChat) {
           return {
@@ -296,6 +308,7 @@ export default function Home() {
         }
         return prevChat;
       });
+      console.log("after setting select chat",selectedChat)
     });
   }, [socket]);
 
@@ -304,7 +317,7 @@ export default function Home() {
       chatContainerRef.current.scrollTop =
         chatContainerRef.current.scrollHeight;
     }
-  }, [selectedChat]); 
+  }, [selectedChat]);
 
   return (
     <>
@@ -333,7 +346,11 @@ export default function Home() {
                 </button>
                 <div className="flex gap-8">
                   <SignedIn>
-                    <UserButton appearance={{ elements: { userButtonAvatarBox: 'w-[46px] h-[46px]' } }} />
+                    <UserButton
+                      appearance={{
+                        elements: { userButtonAvatarBox: "w-[46px] h-[46px]" },
+                      }}
+                    />
                   </SignedIn>
                 </div>
               </div>
