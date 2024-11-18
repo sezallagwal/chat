@@ -239,7 +239,17 @@ export default function Home() {
         senderId: currentUserData?._id || "",
         content: message,
       });
-      selectedChat.data.messages.push(newMessage);
+      // Update selectedChat immutably
+      setSelectedChat((prevSelectedChat) =>
+        prevSelectedChat
+          ? {
+              data: {
+                ...prevSelectedChat.data,
+                messages: [...prevSelectedChat.data.messages, newMessage],
+              },
+            }
+          : null
+      );
       console.log("slected chat in handle send message", selectedChat);
       setMessage("");
     }
@@ -286,23 +296,24 @@ export default function Home() {
     selectedChatRef.current = selectedChat;
   }, [selectedChat]);
 
-
   useEffect(() => {
-  socket?.on("message", (msg) => {
-    console.log("socket on msg", msg);
-    console.log("selected chat in socket on message", selectedChat);
-    if (selectedChatRef.current && selectedChatRef.current.data.roomId === msg.roomId) {
-      selectedChatRef.current.data.messages.push({
-        senderId: msg.senderId,
-        roomId: msg.roomId,
-        content: msg.content,
-      });
-      setSelectedChat({ ...selectedChatRef.current });
-    }
-    console.log("after setting select chat", selectedChatRef.current);
-  });
+    socket?.on("message", (msg) => {
+      console.log("socket on msg", msg);
+      console.log("selected chat in socket on message", selectedChat);
+      if (
+        selectedChatRef.current &&
+        selectedChatRef.current.data.roomId === msg.roomId
+      ) {
+        selectedChatRef.current.data.messages.push({
+          senderId: msg.senderId,
+          roomId: msg.roomId,
+          content: msg.content,
+        });
+        setSelectedChat({ ...selectedChatRef.current });
+      }
+      console.log("after setting select chat", selectedChatRef.current);
+    });
   }, [socket]);
-
 
   useEffect(() => {
     if (chatContainerRef.current) {
