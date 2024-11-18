@@ -12,7 +12,6 @@ import "./globals.css";
 import { SignedIn, UserButton } from "@clerk/nextjs";
 import { useUser } from "@clerk/nextjs";
 import Image from "next/image";
-import { set } from "mongoose";
 
 export default function Home() {
   interface Message {
@@ -65,6 +64,7 @@ export default function Home() {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
   const [chats, setChats] = useState<Chat[]>([]);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const selectedChatRef = useRef(selectedChat);
 
   useEffect(() => {
     if (user) {
@@ -197,10 +197,10 @@ export default function Home() {
         if (!response.ok) {
           throw new Error("Failed to fetch or create room");
         }
-        const room = await response.json();
+        const room: RoomResponse = await response.json();
         console.log("Room found or created:", room);
         setSearchTerm("");
-        setSelectedChat(room);
+        setSelectedChat({ data: room.data });
         console.log("selectedChat in handle chat select", selectedChat);
         setChats((prevChats) => {
           if (!prevChats.some((c) => c.username === chat.username)) {
@@ -227,6 +227,7 @@ export default function Home() {
   const handleSendMessage = () => {
     console.log("selectedChat in handle send message", selectedChat);
     if (selectedChat && message.trim()) {
+      console.log("check", selectedChat.data.roomId);
       const newMessage: Message = {
         roomId: selectedChat.data.roomId,
         senderId: currentUserData?._id || "",
@@ -238,19 +239,8 @@ export default function Home() {
         senderId: currentUserData?._id || "",
         content: message,
       });
-      setSelectedChat((prevChat) => {
-        if (prevChat) {
-          return {
-            ...prevChat,
-            data: {
-              ...prevChat.data,
-              messages: [...prevChat.data.messages, newMessage],
-            },
-          };
-        }
-        // console.log(selectedChat);
-        return prevChat;
-      });
+      selectedChat.data.messages.push(newMessage);
+      console.log("slected chat in handle send message", selectedChat);
       setMessage("");
     }
   };
@@ -293,24 +283,26 @@ export default function Home() {
   }, [currentUserData]);
 
   useEffect(() => {
-    socket?.on("message", (msg) => {
-      console.log(msg);
-      console.log("selected chat in socket on message",selectedChat)
-      setSelectedChat((prevChat) => {
-        if (prevChat) {
-          return {
-            ...prevChat,
-            data: {
-              ...prevChat.data,
-              messages: [...prevChat.data.messages, msg],
-            },
-          };
-        }
-        return prevChat;
+    selectedChatRef.current = selectedChat;
+  }, [selectedChat]);
+
+
+  useEffect(() => {
+  socket?.on("message", (msg) => {
+    console.log("socket on msg", msg);
+    console.log("selected chat in socket on message", selectedChat);
+    if (selectedChatRef.current && selectedChatRef.current.data.roomId === msg.roomId) {
+      selectedChatRef.current.data.messages.push({
+        senderId: msg.senderId,
+        roomId: msg.roomId,
+        content: msg.content,
       });
-      console.log("after setting select chat",selectedChat)
-    });
+      setSelectedChat({ ...selectedChatRef.current });
+    }
+    console.log("after setting select chat", selectedChatRef.current);
+  });
   }, [socket]);
+
 
   useEffect(() => {
     if (chatContainerRef.current) {
