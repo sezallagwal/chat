@@ -18,6 +18,7 @@ export default function Home() {
     senderId: string;
     roomId: string;
     content: string;
+    timestamp: string;
   }
 
   interface User {
@@ -170,11 +171,8 @@ export default function Home() {
           console.error("Failed to fetch chats:", error);
         }
       } else {
-        console.log(
-          "seted chats inside filetered chats after debounded clear",
-          chats
-        );
         setFilteredChats(chats);
+        console.log("chats set to filtered chats", chats);
       }
     };
 
@@ -201,7 +199,6 @@ export default function Home() {
         console.log("Room found or created:", room);
         setSearchTerm("");
         setSelectedChat({ data: room.data });
-        console.log("selectedChat in handle chat select", selectedChat);
         setChats((prevChats) => {
           if (!prevChats.some((c) => c.username === chat.username)) {
             return [...prevChats, chat];
@@ -225,13 +222,12 @@ export default function Home() {
   };
 
   const handleSendMessage = () => {
-    console.log("selectedChat in handle send message", selectedChat);
     if (selectedChat && message.trim()) {
-      console.log("check", selectedChat.data.roomId);
       const newMessage: Message = {
         roomId: selectedChat.data.roomId,
         senderId: currentUserData?._id || "",
         content: message,
+        timestamp: new Date().toISOString(),
       };
       socket?.emit("message", {
         roomId: selectedChat.data.roomId,
@@ -250,7 +246,7 @@ export default function Home() {
             }
           : null
       );
-      console.log("slected chat in handle send message", selectedChat);
+      console.log("selectedChat after handleSend message", selectedChat);
       setMessage("");
     }
   };
@@ -299,7 +295,6 @@ export default function Home() {
   useEffect(() => {
     socket?.on("message", (msg) => {
       console.log("socket on msg", msg);
-      console.log("selected chat in socket on message", selectedChat);
       if (
         selectedChatRef.current &&
         selectedChatRef.current.data.roomId === msg.roomId
@@ -308,10 +303,11 @@ export default function Home() {
           senderId: msg.senderId,
           roomId: msg.roomId,
           content: msg.content,
+          timestamp: new Date().toISOString(),
         });
         setSelectedChat({ ...selectedChatRef.current });
       }
-      console.log("after setting select chat", selectedChatRef.current);
+      console.log("selectedChat after socket.on message", selectedChatRef.current);
     });
   }, [socket]);
 
