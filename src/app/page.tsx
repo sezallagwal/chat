@@ -49,6 +49,7 @@ export default function Home() {
     profileImage: string;
     _id: string;
     username: string;
+    chatUserId?: string;
   };
 
   const { user } = useUser();
@@ -66,6 +67,7 @@ export default function Home() {
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [typingUser, setTypingUser] = useState<string | null>(null);
+  const selectedChatRef = useRef(selectedChat);
 
   useEffect(() => {
     if (user) {
@@ -96,7 +98,7 @@ export default function Home() {
 
           const data = await response.json();
           setCurrentUserData(data.data);
-          // console.log("User created:", data);
+          console.log("User created:", data);
         } catch (error) {
           console.error("Error creating user:", error);
         }
@@ -165,12 +167,16 @@ export default function Home() {
             throw new Error("Failed to fetch chats");
           }
           const data = await response.json();
-          // console.log("users found", data);
+          console.log("users found", data);
           setFilteredChats(data);
         } catch (error) {
           console.error("Failed to fetch chats:", error);
         }
       } else {
+        console.log(
+          "seted chats inside filetered chats after debounded clear",
+          chats
+        );
         setFilteredChats(chats);
       }
     };
@@ -179,12 +185,14 @@ export default function Home() {
   }, [debouncedSearchTerm, chats]);
 
   const handleChatSelect = async (chat: Chat) => {
+    console.log("chat", chat);
     if (currentUserData) {
       const userId = currentUserData._id;
       const chatUserId = chat._id;
       console.log("chat user id", chatUserId);
       const username = chat.username;
       const profileImage = chat.profileImage;
+      console.log(chatUserId);
 
       try {
         const response = await fetch(
@@ -193,10 +201,11 @@ export default function Home() {
         if (!response.ok) {
           throw new Error("Failed to fetch or create room");
         }
-        const room = await response.json();
-        // console.log("Room found or created:", room);
+        const room: RoomResponse = await response.json();
+        console.log("Room found or created:", room);
         setSearchTerm("");
-        setSelectedChat(room);
+        setSelectedChat({ data: room.data });
+        console.log("selectedChat in handle chat select", selectedChat);
         setChats((prevChats) => {
           if (!prevChats.some((c) => c.username === chat.username)) {
             return [...prevChats, chat];
@@ -209,18 +218,20 @@ export default function Home() {
         );
 
         if (!sidebar.ok) {
-          throw new Error("Failed to fetch sidebar");
+          throw new Error("Failed to pos data to sidebar");
         }
         // const sidebarData = await sidebar.json();
         // console.log("Sidebar data", sidebarData);
       } catch (error) {
-        console.error("Error fetching or creating room:", error);
+        console.error("error adding user in sidebar:", error);
       }
     }
   };
 
   const handleSendMessage = () => {
+    console.log("selectedChat in handle send message", selectedChat);
     if (selectedChat && message.trim()) {
+      console.log("check", selectedChat.data.roomId);
       const newMessage: Message = {
         roomId: selectedChat.data.roomId,
         senderId: currentUserData?._id || "",
@@ -232,25 +243,25 @@ export default function Home() {
         senderId: currentUserData?._id || "",
         content: message,
       });
-      setSelectedChat((prevChat) => {
-        if (prevChat) {
-          return {
-            ...prevChat,
-            data: {
-              ...prevChat.data,
-              messages: [...prevChat.data.messages, newMessage],
-            },
-          };
-        }
-        return prevChat;
-      });
 
-      socket?.emit("stop-typing", {
-        roomId: selectedChat.data.roomId,
-        participants: selectedChat.data.participants,
-        senderId: currentUserData?._id || "",
-      });
-
+      // Update selectedChat immutably
+      setSelectedChat((prevSelectedChat) =>
+        prevSelectedChat
+          ? {
+              data: {
+                ...prevSelectedChat.data,
+                messages: [...prevSelectedChat.data.messages, newMessage],
+              },
+            }
+          : null
+      );
+      console.log("slected chat in handle send message", selectedChat);
+        
+        socket?.emit("stop-typing", {
+          roomId: selectedChat.data.roomId,
+          participants: selectedChat.data.participants,
+          senderId: currentUserData?._id || "",
+        });
       setMessage("");
     }
   };
@@ -266,25 +277,24 @@ export default function Home() {
             throw new Error("Failed to fetch sidebar");
           }
           const sidebarData = await sidebar.json();
-          // console.log("Sidebar data", sidebarData);
-          setChats((prevChats) => {
-            if (
-              !prevChats.some(
-                (c) => c.username === sidebarData.data.allSidebarUsers.username
-              )
-            ) {
-              return [
-                ...prevChats,
-                {
-                  _id: sidebarData.data.allSidebarUsers._id,
-                  username: sidebarData.data.allSidebarUsers.username,
-                  profileImage: sidebarData.data.allSidebarUsers.profileImage,
-                },
-              ];
-            }
-            return prevChats;
+          console.log("Sidebar data", sidebarData);
+          sidebarData.data.allSidebarUsers.forEach((chat: Chat) => {
+            setChats((prevChats) => {
+              if (!prevChats.some((c) => c.username === chat.username)) {
+                return [
+                  ...prevChats,
+                  {
+                    _id: chat.chatUserId || "",
+                    chatUserId: chat.chatUserId || "",
+                    username: chat.username,
+                    profileImage: chat.profileImage,
+                  },
+                ];
+              }
+              return prevChats;
+            });
           });
-          setChats(sidebarData.data.allSidebarUsers);
+          // setChats(sidebarData.data.allSidebarUsers);
         } catch (error) {
           console.error("Error fetching or creating room:", error);
         }
@@ -294,19 +304,25 @@ export default function Home() {
   }, [currentUserData]);
 
   useEffect(() => {
+    selectedChatRef.current = selectedChat;
+  }, [selectedChat]);
+
+  useEffect(() => {
     socket?.on("message", (msg) => {
-      setSelectedChat((prevChat) => {
-        if (prevChat) {
-          return {
-            ...prevChat,
-            data: {
-              ...prevChat.data,
-              messages: [...prevChat.data.messages, msg],
-            },
-          };
-        }
-        return prevChat;
-      });
+      console.log("socket on msg", msg);
+      console.log("selected chat in socket on message", selectedChat);
+      if (
+        selectedChatRef.current &&
+        selectedChatRef.current.data.roomId === msg.roomId
+      ) {
+        selectedChatRef.current.data.messages.push({
+          senderId: msg.senderId,
+          roomId: msg.roomId,
+          content: msg.content,
+        });
+        setSelectedChat({ ...selectedChatRef.current });
+      }
+      console.log("after setting select chat", selectedChatRef.current);
     });
   }, [socket]);
 

@@ -14,14 +14,17 @@ export async function GET(req: NextRequest) {
     const username = url.searchParams.get("username");
     const profileImage = url.searchParams.get("profileImage");
     console.log(username);
+        // Ensure consistent order of participants
+        const participants = [userId, chatUserId].sort();
+
     // Check if a room with these participants already exists
     let room = await Room.findOne({
-      participants: { $all: [userId, chatUserId] },
+      participants,
     });
 
     if (!room) {
       // Create a new room if none exists
-      room = await Room.create({ participants: [userId, chatUserId] });
+      room = await Room.create({ participants});
       return NextResponse.json({
         message: "New room created successfully",
         data: {
