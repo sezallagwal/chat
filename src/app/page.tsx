@@ -65,6 +65,7 @@ export default function Home() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [typingUser, setTypingUser] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -310,13 +311,15 @@ export default function Home() {
   }, [socket]);
 
   useEffect(() => {
-    socket?.on("typing", () => {
+    socket?.on("typing", ({ username }) => {
       setIsTyping(true);
-      console.log("got typing true");
+      setTypingUser(username);
+      console.log(`got typing true ${username}`);
     });
 
     socket?.on("stop-typing", () => {
       setIsTyping(false);
+      setTypingUser(null);
       console.log("got stop typing");
     });
 
@@ -335,6 +338,7 @@ export default function Home() {
         roomId: selectedChat?.data.roomId,
         participants: selectedChat?.data.participants,
         senderId: currentUserData?._id || "",
+        username: currentUserData?.username,
       });
     }
 
@@ -345,6 +349,7 @@ export default function Home() {
         roomId: selectedChat?.data.roomId,
         participants: selectedChat?.data.participants,
         senderId: currentUserData?._id || "",
+        username: currentUserData?.username,
       });
       console.log("timeout typing");
     }, 3000);
@@ -424,7 +429,7 @@ export default function Home() {
                       />{" "}
                     </div>
                     <div className="">{chat.username}</div> {/*sidebar*/}
-                    {isTyping ? "typing..." : " "}
+                    {chat.username === typingUser ? "typing..." : " "}
                   </div>
                 ))}
               </div>

@@ -75,13 +75,13 @@ app.prepare().then(() => {
       }
     );
 
-    socket.on("typing", ({ roomId, participants, senderId }) => {
+    socket.on("typing", ({ roomId, participants, senderId, username }) => {
       participants.forEach((participant) => {
         const targetSocketId = userIdToSocketMap[participant];
         if (targetSocketId) {
           socket.broadcast
             .to(targetSocketId)
-            .emit("typing", { roomId, senderId });
+            .emit("typing", { roomId, senderId, username });
           console.log(
             `Typing event sent to receiver with socket id: ${targetSocketId}`
           );
@@ -91,13 +91,13 @@ app.prepare().then(() => {
       });
     });
 
-    socket.on("stop-typing", ({ roomId, participants, senderId }) => {
+    socket.on("stop-typing", ({ roomId, participants, senderId, username }) => {
       participants.forEach((participant) => {
         const targetSocketId = userIdToSocketMap[participant];
         if (targetSocketId) {
           socket.broadcast
             .to(targetSocketId)
-            .emit("stop-typing", { roomId, senderId });
+            .emit("stop-typing", { roomId, senderId, username });
           console.log(
             `Stop typing event sent to receiver with socket id: ${targetSocketId}`
           );
