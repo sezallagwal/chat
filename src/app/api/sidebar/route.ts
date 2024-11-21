@@ -10,8 +10,10 @@ export async function GET(req: NextRequest) {
     const userId = url.searchParams.get("userId");
     const chatUserId = url.searchParams.get("chatUserId");
     const username = url.searchParams.get("username");
+    const myUsername = url.searchParams.get("myUsername");
     const profileImage = url.searchParams.get("profileImage");
-    console.log(username);
+    const myProfileImage = url.searchParams.get("myProfileImage");
+    console.log("my profile img", myProfileImage);
 
     let sidebar = await Sidebar.findOne({
       userId: userId,
@@ -24,15 +26,18 @@ export async function GET(req: NextRequest) {
         userId,
         chatUserId,
         username,
+        myUsername,
         profileImage,
+        myProfileImage,
       });
       return NextResponse.json({
         message: "New sidebar created successfully",
         data: {
-          sidebarId: sidebar._id,
           userId,
           username,
+          myUsername,
           profileImage,
+          myProfileImage,
         },
       });
     } else {

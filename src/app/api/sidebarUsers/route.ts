@@ -6,17 +6,36 @@ export async function GET(req: Request) {
   connectDB();
   const url = new URL(req.url);
   const userId = url.searchParams.get("userId");
+
   try {
     const allSidebarUsers = await Sidebar.find({
-      userId: userId,
+      $or: [
+        { userId: userId }, // Check if userId matches
+        { chatUserId: userId }, // Check if chatUserId matches
+      ],
     })
       .limit(10)
       .exec();
 
+    console.log("allsidebar users", allSidebarUsers);
+    // Map the response to set username dynamically
+    const formattedSidebarUsers = allSidebarUsers.map((user) => {
+      return {
+        _id: user.chatUserId,
+        chatUserId: user.chatUserId,
+        profileImage: user.chatUserId.equals(userId)
+          ? user.myProfileImage
+          : user.profileImage,
+        username: user.chatUserId.equals(userId)
+          ? user.myUsername
+          : user.username,
+      };
+    });
+
     return NextResponse.json({
-      message: "sidebar found successfully",
+      message: "Sidebar users fetched successfully",
       data: {
-        allSidebarUsers,
+        allSidebarUsers: formattedSidebarUsers,
       },
     });
   } catch (error) {

@@ -14,12 +14,13 @@ import { useUser } from "@clerk/nextjs";
 import Image from "next/image";
 
 export default function Home() {
-  interface Message {
+  type Message = {
     senderId: string;
     roomId: string;
     content: string;
+    username?: string;
     timestamp: string;
-  }
+  };
 
   interface User {
     // _id: string;
@@ -38,10 +39,10 @@ export default function Home() {
 
   interface RoomResponse {
     data: {
-      profileImage: string;
       roomId: string;
       username: string;
       participants: string[];
+      profileImage: string;
       messages: Message[];
     };
   }
@@ -51,6 +52,9 @@ export default function Home() {
     _id: string;
     username: string;
     chatUserId?: string;
+    hasUnread?: boolean;
+    userId?: string;
+    myUsername?: string;
   };
 
   const { user } = useUser();
@@ -185,12 +189,13 @@ export default function Home() {
       const userId = currentUserData._id;
       const chatUserId = chat._id;
       const username = chat.username;
+      const myUsername = currentUserData.username;
       const profileImage = chat.profileImage;
-      console.log(chatUserId);
+      const myProfileImage = currentUserData.profileImage;
 
       try {
         const response = await fetch(
-          `/api/room?userId=${userId}&chatUserId=${chatUserId}&username=${username}&profileImage=${profileImage}`
+          `/api/room?userId=${userId}&chatUserId=${chatUserId}&username=${username}&myUsername=${myUsername}&profileImage=${profileImage}`
         );
         if (!response.ok) {
           throw new Error("Failed to fetch or create room");
@@ -207,12 +212,14 @@ export default function Home() {
           }
         });
         const sidebar = await fetch(
-          `/api/sidebar?userId=${userId}&chatUserId=${chatUserId}&username=${username}&profileImage=${profileImage}`
+          `/api/sidebar?userId=${userId}&chatUserId=${chatUserId}&username=${username}&profileImage=${profileImage}&myUsername=${myUsername}&myProfileImage=${myProfileImage}`
         );
 
         if (!sidebar.ok) {
-          throw new Error("Failed to pos data to sidebar");
+          throw new Error("Failed to post data to sidebar");
         }
+        const sidebarData = await sidebar.json();
+        console.log("Sidebar data posted successfully", sidebarData);
         // const sidebarData = await sidebar.json();
         // console.log("Sidebar data", sidebarData);
       } catch (error) {
@@ -223,18 +230,23 @@ export default function Home() {
 
   const handleSendMessage = () => {
     if (selectedChat && message.trim()) {
+      console.log("selected chat in handle send message", selectedChat);
       const newMessage: Message = {
         roomId: selectedChat.data.roomId,
         senderId: currentUserData?._id || "",
         content: message,
+        username: currentUserData?.username || "",
         timestamp: new Date().toISOString(),
       };
+
+      // Emit the message through the socket
       socket?.emit("message", {
         roomId: selectedChat.data.roomId,
         participants: selectedChat.data.participants,
         senderId: currentUserData?._id || "",
         content: message,
       });
+
       // Update selectedChat immutably
       setSelectedChat((prevSelectedChat) =>
         prevSelectedChat
@@ -246,7 +258,28 @@ export default function Home() {
             }
           : null
       );
-      console.log("selectedChat after handleSend message", selectedChat);
+
+      // Move the chat to the top in filteredChats
+      setFilteredChats((prevFilteredChats) => {
+        const updatedChats = [...prevFilteredChats];
+
+        // Find the chat in the list
+        const chatIndex = updatedChats.findIndex(
+          (chat) => chat.username === selectedChat.data.username
+        );
+
+        if (chatIndex !== -1) {
+          const chat = updatedChats[chatIndex];
+
+          // Move the chat to the top
+          updatedChats.splice(chatIndex, 1);
+          updatedChats.unshift(chat);
+        }
+
+        return updatedChats;
+      });
+
+      console.log("selectedChat after handleSendMessage", selectedChat);
       setMessage("");
     }
   };
@@ -262,7 +295,7 @@ export default function Home() {
             throw new Error("Failed to fetch sidebar");
           }
           const sidebarData = await sidebar.json();
-          console.log("Sidebar data", sidebarData);
+          console.log("Sidebar data fetched successfully", sidebarData);
           sidebarData.data.allSidebarUsers.forEach((chat: Chat) => {
             setChats((prevChats) => {
               if (!prevChats.some((c) => c.username === chat.username)) {
@@ -279,7 +312,6 @@ export default function Home() {
               return prevChats;
             });
           });
-          // setChats(sidebarData.data.allSidebarUsers);
         } catch (error) {
           console.error("Error fetching or creating room:", error);
         }
@@ -293,7 +325,7 @@ export default function Home() {
   }, [selectedChat]);
 
   useEffect(() => {
-    socket?.on("message", (msg) => {
+    const messageHandler = (msg: Message) => {
       console.log("socket on msg", msg);
       if (
         selectedChatRef.current &&
@@ -307,9 +339,40 @@ export default function Home() {
         });
         setSelectedChat({ ...selectedChatRef.current });
       }
-      console.log("selectedChat after socket.on message", selectedChatRef.current);
-    });
-  }, [socket]);
+
+      // Update the filtered chats
+      setFilteredChats((prevFilteredChats) => {
+        const updatedChats = [...prevFilteredChats];
+
+        // Find the chat to update
+        const chatIndex = updatedChats.findIndex(
+          (chat) => chat.chatUserId === msg.senderId
+        );
+
+        if (chatIndex !== -1) {
+          const chat = updatedChats[chatIndex];
+
+          // Move the chat to the top
+          updatedChats.splice(chatIndex, 1);
+          updatedChats.unshift({
+            ...chat,
+            hasUnread:
+              !selectedChatRef.current ||
+              selectedChatRef.current.data.roomId !== msg.roomId, // Show red dot if not selected
+          });
+        }
+        return updatedChats;
+      });
+
+      console.log("filtered chats updated", filteredChats);
+    };
+
+    socket?.on("message", messageHandler);
+
+    return () => {
+      socket?.off("message", messageHandler);
+    };
+  }, [socket, filteredChats]);
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -382,7 +445,12 @@ export default function Home() {
                         className="rounded-full"
                       />{" "}
                     </div>
-                    <div className="">{chat.username}</div>
+                    <div className="">
+                      {chat.username}{" "}
+                      {chat.hasUnread && (
+                        <span className="w-2 h-2 bg-red-600 rounded-full inline-block" />
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

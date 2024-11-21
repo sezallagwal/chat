@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     const chatUserId = url.searchParams.get("chatUserId");
     const username = url.searchParams.get("username");
     const profileImage = url.searchParams.get("profileImage");
-    console.log(username);
+    console.log("profile img", profileImage);
         // Ensure consistent order of participants
         const participants = [userId, chatUserId].sort();
 
