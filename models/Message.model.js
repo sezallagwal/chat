@@ -1,11 +1,12 @@
 import mongoose from "mongoose";
 
+
 const MessageSchema = new mongoose.Schema({
-  roomId: { type: mongoose.Schema.Types.ObjectId, ref: 'Room', required: true },
-  senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  room: { type: mongoose.Schema.Types.ObjectId, ref: "Sidebar", required: true },
+  sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   content: { type: String, required: true },
   timestamp: { type: Date, default: Date.now },
-  createdAt: { type: Date, default: Date.now },
+  readBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   updatedAt: { type: Date, default: Date.now },
 });
 

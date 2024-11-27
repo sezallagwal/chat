@@ -1,7 +1,6 @@
 import { Server } from "socket.io";
 import { createServer } from "http";
 import connectDB from "./db.js";
-import Message from "./models/Message.model.js";
 import next from "next";
 
 await connectDB();
@@ -42,38 +41,50 @@ app.prepare().then(() => {
       }
     });
 
-    socket.on(
-      "message",
-      async ({ roomId, participants, senderId, content }) => {
-        try {
-          participants.forEach((participant) => {
-            const targetSocketId = userIdToSocketMap[participant];
-            console.log(`Mapped user IDs: `, userIdToSocketMap);
-            if (targetSocketId) {
-              socket.broadcast
-                .to(targetSocketId)
-                .emit("message", { roomId, senderId, content });
-              console.log(
-                `Message sent to receiver with socket id: ${targetSocketId}`
-              );
-            } else {
-              console.log("User is offline, message not sent.");
-            }
-          });
+    socket.on("new-chat", ({ sidebarId, participants, lastMessage }) => {
+      console.log("New chat created:", sidebarId);
 
-          //todo : validate
-          const message = new Message({
-            roomId,
+      const unreadCount = 1; // Default unread count for the recipient
+
+      participants.forEach((participantId) => {
+        if (
+          userIdToSocketMap[participantId] &&
+          userIdToSocketMap[participantId] !== socket.id
+        ) {
+            socket.to(userIdToSocketMap[participantId]).emit("receive-new-chat", {
+            sidebarId,
             participants,
-            senderId,
-            content,
+            lastMessage, // Include last message details
+            unreadCount, // Send unread count
           });
-          await message.save();
-        } catch (error) {
-          console.log(error, "Error in saving message");
         }
-      }
-    );
+      });
+    });
+
+    socket.on("send-message", (data) => {
+      const { room, sender, content,readBy, participants } = data;
+
+      // Log message for debugging
+      console.log(
+        `Message from ${sender}: ${content} to participants:`,
+        participants
+      );
+
+      // Emit the message to all participants except the sender
+      participants.forEach((participantId) => {
+        if (participantId !== sender) {
+          const participantSocket = userIdToSocketMap[participantId];
+          if (participantSocket) {
+            socket.to(participantSocket).emit("receive-message", {
+              room,
+              sender,
+              content,
+              readBy,
+            });
+          }
+        }
+      });
+    });
   });
 
   server

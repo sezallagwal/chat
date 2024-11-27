@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
-
+import { SocketProvider } from "./context/SocketContext";
+import { UserProvider } from "./context/UserContext";
 
 export const metadata: Metadata = {
   title: "Chat App",
@@ -20,13 +21,13 @@ export default function RootLayout({
         baseTheme: dark,
       }}
     >
-      <html lang="en">
-        <body
-          className={`antialiased`}
-        >
-          {children}
-        </body>
-      </html>
+      <UserProvider>
+        <SocketProvider>
+          <html lang="en">
+            <body className={`antialiased`}>{children}</body>
+          </html>
+        </SocketProvider>
+      </UserProvider>
     </ClerkProvider>
   );
 }

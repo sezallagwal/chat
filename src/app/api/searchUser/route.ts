@@ -19,7 +19,7 @@ export async function GET(req: Request) {
     await connectDB();
     const users = await User.find({
       username: { $regex: new RegExp(username, "i") },
-    }) // Case-insensitive search
+    }).select("username profileImage")
       .limit(10)
       .exec();
     if (!users) {
