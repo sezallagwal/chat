@@ -31,19 +31,20 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       }); // Replace with your backend's URL
       setSocket(socketInstance);
       socketInstance.on("connect", () => {
-        console.log("connected", socketInstance.id);
+        // console.log("connected", socketInstance.id);
       });
       socketInstance.on("disconnect", () => {
-        console.log("disconnected", socketInstance.id);
+        // console.log("disconnected", socketInstance.id);
       });
 
       // Cleanup the socket connection on component unmount
       return () => {
         socketInstance.disconnect();
       };
-    } else {
-      console.log("current user not set");
     }
+    //  else {
+    // console.log("current user not set");
+    // }
   }, [user]);
 
   return (

@@ -331,6 +331,8 @@ export default function Main() {
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
 
+    const msg = newMessage.trim();
+    setNewMessage("");
     try {
       const isNewChat = !activeChat?.sidebar._id;
 
@@ -360,7 +362,7 @@ export default function Main() {
           sidebarId: newSidebar._id,
           participants: newSidebar.participants,
           lastMessage: {
-            content: newMessage.trim(),
+            content: msg,
             sender: {
               _id: user?._id || "",
               username: user?.username || "",
@@ -378,7 +380,7 @@ export default function Main() {
               ...prev.messages,
               {
                 room: newSidebar._id,
-                content: newMessage,
+                content: msg,
                 sender: {
                   _id: user?._id || "",
                   username: user?.username || "",
@@ -394,7 +396,7 @@ export default function Main() {
 
         // Update the sidebar lastMessage
         handleSidebarUpdate(newSidebar._id as string, {
-          content: newMessage.trim(),
+          content: msg,
           sender: { _id: user?._id || "", username: user?.username || "" },
           timestamp: new Date().toISOString(),
           readBy: [user?._id || ""],
@@ -404,7 +406,7 @@ export default function Main() {
         await axios.post("/api/message/post", {
           room: newSidebar._id,
           sender: user?._id,
-          content: newMessage.trim(),
+          content: msg,
         });
 
         // const message = messageResponse.data.message;
@@ -419,7 +421,7 @@ export default function Main() {
               ...prev.messages,
               {
                 room: prev.sidebar._id || "",
-                content: newMessage,
+                content: msg,
                 sender: {
                   _id: user?._id || "",
                   username: user?.username || "",
@@ -433,7 +435,7 @@ export default function Main() {
 
         // Update the sidebar lastMessage
         handleSidebarUpdate(activeChat?.sidebar._id as string, {
-          content: newMessage.trim(),
+          content: msg,
           sender: { _id: user?._id || "", username: user?.username || "" },
           timestamp: new Date().toISOString(),
           readBy: [user?._id || ""], // Assuming the sender has already read it
@@ -443,7 +445,7 @@ export default function Main() {
         socket?.emit("send-message", {
           room: activeChat?.sidebar._id,
           sender: { _id: user?._id, username: user?.username },
-          content: newMessage.trim(),
+          content:  msg,
           readBy: [user?._id],
           participants: activeChat?.sidebar.participants.map((p) => p._id),
         });
@@ -452,13 +454,12 @@ export default function Main() {
         await axios.post("/api/message/post", {
           room: activeChat?.sidebar._id,
           sender: user?._id,
-          content: newMessage.trim(),
+          content: msg,
         });
 
         // const message = messageResponse.data.message;
         // console.log("message sent", message);
       }
-      setNewMessage("");
     } catch (error) {
       console.error("Error sending message:", error);
     }
